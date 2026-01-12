@@ -1,20 +1,29 @@
 import 'package:flutter/material.dart';
+import 'presentation/screens/auth/splash_screen.dart';
+import 'presentation/screens/auth/login_screen.dart';
+import 'presentation/screens/auth/registration_screen.dart';
+import 'presentation/screens/auth/otp_verification_screen.dart';
+import 'services/supabase_config.dart';
 
-void main() {
-  runApp(const MainApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SupabaseConfig.initialize();
+  runApp(MyApp());
 }
-
-class MainApp extends StatelessWidget {
-  const MainApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('Hello World!'),
-        ),
-      ),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      initialRoute: '/splash',
+      routes: {
+        '/splash': (_) => const SplashScreen(),
+        '/login': (_) => const LoginScreen(userType: '',),
+        '/register': (_) => const RegistrationScreen(userType: '',),
+        '/otp': (_) => const OtpVerificationScreen(phoneNumber: '',),
+      },
     );
   }
 }
