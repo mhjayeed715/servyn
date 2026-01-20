@@ -4,6 +4,8 @@ import '../../../core/services/session_service.dart';
 import '../../../services/supabase_config.dart';
 import 'provider_settings_screen.dart';
 import '../auth/auth_choice_screen.dart';
+import 'reviews_screen.dart';
+import '../chat/chat_list_screen.dart';
 
 class EnhancedProviderDashboardScreen extends StatefulWidget {
   const EnhancedProviderDashboardScreen({Key? key}) : super(key: key);
@@ -18,6 +20,7 @@ class _EnhancedProviderDashboardScreenState extends State<EnhancedProviderDashbo
   Map<String, dynamic> _stats = {};
   Map<String, dynamic>? _activeJob;
   List<Map<String, dynamic>> _upcomingJobs = [];
+  List<Map<String, dynamic>> _pendingRequests = [];
   String _providerName = 'Provider';
   int _currentIndex = 0;
 
@@ -36,6 +39,18 @@ class _EnhancedProviderDashboardScreenState extends State<EnhancedProviderDashbo
         final activeJob = await SupabaseService.getProviderActiveJob(userId);
         final upcomingJobs = await SupabaseService.getProviderUpcomingJobs(userId);
         
+        // Load pending requests
+        final pendingRequests = await SupabaseConfig.client
+            .from('bookings')
+            .select('''
+              *,
+              customer_profiles!inner(full_name, phone)
+            ''')
+            .eq('provider_id', userId)
+            .eq('status', 'pending')
+            .order('created_at', ascending: false)
+            .limit(5);
+        
         // Get provider name
         final profile = await SupabaseConfig.client
             .from('provider_profiles')
@@ -47,6 +62,7 @@ class _EnhancedProviderDashboardScreenState extends State<EnhancedProviderDashbo
           _stats = stats;
           _activeJob = activeJob;
           _upcomingJobs = upcomingJobs;
+          _pendingRequests = List<Map<String, dynamic>>.from(pendingRequests);
           _providerName = profile['name'] ?? 'Provider';
           _isLoading = false;
         });
@@ -151,24 +167,39 @@ class _EnhancedProviderDashboardScreenState extends State<EnhancedProviderDashbo
                         ),
                       ],
                     ),
-                    Stack(
+                    Row(
                       children: [
                         IconButton(
-                          onPressed: () {},
-                          icon: const Icon(Icons.notifications_outlined),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ChatListScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.chat_bubble_outline),
                         ),
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
+                        Stack(
+                          children: [
+                            IconButton(
+                              onPressed: () {},
+                              icon: const Icon(Icons.notifications_outlined),
                             ),
-                          ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -277,12 +308,28 @@ class _EnhancedProviderDashboardScreenState extends State<EnhancedProviderDashbo
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildStatCard(
-                    icon: Icons.star,
-                    label: 'Rating',
-                    value: '${(_stats['averageRating'] ?? 0).toStringAsFixed(1)} ★',
-                    badge: '+0.1',
-                    badgeColor: Colors.green,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final userId = await SessionService.getUserId();
+                      if (userId != null && mounted) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ReviewsScreen(
+                              providerId: userId,
+                              providerName: _providerName,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    child: _buildStatCard(
+                      icon: Icons.star,
+                      label: 'Rating',
+                      value: '${(_stats['averageRating'] ?? 0).toStringAsFixed(1)} ★',
+                      badge: '+0.1',
+                      badgeColor: Colors.green,
+                    ),
                   ),
                 ),
               ],
@@ -290,6 +337,52 @@ class _EnhancedProviderDashboardScreenState extends State<EnhancedProviderDashbo
           ),
 
           const SizedBox(height: 24),
+
+          // Pending Requests Section
+          if (_pendingRequests.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'New Requests',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF181511),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${_pendingRequests.length}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            ..._pendingRequests.map((request) => Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: _buildPendingRequestCard(request),
+                )),
+            const SizedBox(height: 24),
+          ],
 
           // Active Job Section
           if (_activeJob != null) ...[
@@ -602,6 +695,216 @@ class _EnhancedProviderDashboardScreenState extends State<EnhancedProviderDashbo
         ],
       ),
     );
+  }
+
+  Widget _buildPendingRequestCard(Map<String, dynamic> request) {
+    final customerName = request['customer_profiles']?['full_name'] ?? 'Customer';
+    final serviceCategory = request['service_category'] ?? 'Service';
+    final scheduledDate = request['scheduled_date'] ?? '';
+    final scheduledTime = request['scheduled_time'] ?? '';
+    final location = request['service_location'] ?? 'Location not specified';
+    final price = request['estimated_price'] ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEC9213), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFEC9213).withOpacity(0.1),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      serviceCategory,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF181511),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      customerName,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF897961),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '৳${price.toStringAsFixed(0)}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFEC9213),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(Icons.calendar_today, size: 14, color: Color(0xFF897961)),
+              const SizedBox(width: 6),
+              Text(
+                '$scheduledDate at $scheduledTime',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF897961)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(Icons.location_on, size: 14, color: Color(0xFF897961)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  location,
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF897961)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => _handleRejectBooking(request['id']),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey.shade200,
+                    foregroundColor: Colors.black87,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Decline'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => _handleAcceptBooking(request['id']),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEC9213),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Accept'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleAcceptBooking(String bookingId) async {
+    try {
+      await SupabaseConfig.client
+          .from('bookings')
+          .update({
+            'status': 'confirmed',
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', bookingId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Booking accepted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _loadDashboardData(); // Reload dashboard
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error accepting booking: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleRejectBooking(String bookingId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Decline Booking'),
+        content: const Text('Are you sure you want to decline this booking request?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Decline'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await SupabaseConfig.client
+            .from('bookings')
+            .update({
+              'status': 'cancelled',
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', bookingId);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Booking declined'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          _loadDashboardData(); // Reload dashboard
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error declining booking: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   Widget _buildOtherContent() {

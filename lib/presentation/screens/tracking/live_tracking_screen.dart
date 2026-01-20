@@ -5,6 +5,8 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../customer/sos_alert_screen.dart';
+import '../chat/chat_list_screen.dart';
 
 class LiveTrackingScreen extends StatefulWidget {
   final String bookingId;
@@ -68,7 +70,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> with SingleTick
       if (_bookingData!['provider_id'] != null) {
         final providerResponse = await Supabase.instance.client
             .from('provider_profiles')
-            .select('*, users(*)')
+            .select('*, users(phone, id)')
             .eq('user_id', _bookingData!['provider_id'])
             .single();
 
@@ -197,35 +199,23 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> with SingleTick
   }
 
   Future<void> _openChat() async {
-    // TODO: Navigate to chat screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Chat feature coming soon')),
+    // Navigate to chat screen with booking context
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatListScreen(),
+      ),
     );
   }
 
   Future<void> _showSOSDialog() async {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Emergency SOS'),
-        content: const Text('Do you need emergency assistance?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Call emergency number
-              _makePhoneCall('911');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: const Text('Call Emergency'),
-          ),
-        ],
+    // Navigate to SOS alert screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SosAlertScreen(
+          bookingId: widget.bookingId,
+        ),
       ),
     );
   }
@@ -388,7 +378,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> with SingleTick
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              _providerData?['users']?['full_name']?.split(' ')[0] ?? 'Provider',
+                              _providerData?['full_name']?.split(' ')[0] ?? 'Provider',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
@@ -639,7 +629,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> with SingleTick
                                 ),
                                 const SizedBox(height: 12),
                                 Text(
-                                  '${_providerData?['users']?['full_name']?.split(' ')[0] ?? 'Provider'} is on the way to your location',
+                                  '${_providerData?['full_name']?.split(' ')[0] ?? 'Provider'} is on the way to your location',
                                   style: TextStyle(
                                     color: Colors.grey[400],
                                     fontSize: 14,
@@ -724,7 +714,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> with SingleTick
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          _providerData?['users']?['full_name'] ?? 'Provider',
+                                          _providerData?['full_name'] ?? 'Provider',
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 18,
@@ -822,7 +812,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> with SingleTick
                                       }
                                     },
                                     icon: const Icon(Icons.call),
-                                    label: Text('Call ${_providerData?['users']?['full_name']?.split(' ')[0] ?? 'Provider'}'),
+                                    label: Text('Call ${_providerData?['full_name']?.split(' ')[0] ?? 'Provider'}'),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFFEC9213),
                                       foregroundColor: Colors.white,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/colors.dart';
-import 'booking_confirmation_screen.dart';
+import 'booking_submitted_screen.dart';
 
 class DateTimeSelectionScreen extends StatefulWidget {
 	final String serviceId;
@@ -98,14 +98,16 @@ class _DateTimeSelectionScreenState extends State<DateTimeSelectionScreen> {
 		Navigator.push(
 			context,
 			MaterialPageRoute(
-				builder: (_) => BookingConfirmationScreen(
-					serviceId: widget.serviceId,
-					serviceName: widget.serviceName,
-					price: widget.price,
-					scheduledAt: _selectedDate,
-					providerId: widget.providerId,
-					providerName: widget.providerName,
-					notes: _notesController.text.trim(),
+				builder: (_) => BookingSubmittedScreen(
+					booking: {
+						'service_name': widget.serviceName,
+						'status': 'pending',
+						'scheduled_date': _selectedDate.toIso8601String(),
+						'provider_id': widget.providerId,
+						'provider_name': widget.providerName,
+						'price': widget.price,
+						'notes': _notesController.text.trim(),
+					},
 				),
 			),
 		);

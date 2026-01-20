@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'dart:async';
 import '../../../services/supabase_config.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../chat/chat_list_screen.dart';
 
 class JobStatusTimelineScreen extends StatefulWidget {
   final String bookingId;
@@ -156,9 +157,12 @@ class _JobStatusTimelineScreenState extends State<JobStatusTimelineScreen> with 
   }
 
   Future<void> _openChat() async {
-    // TODO: Navigate to chat screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Chat feature coming soon')),
+    // Navigate to chat screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatListScreen(),
+      ),
     );
   }
 
@@ -402,7 +406,7 @@ class _JobStatusTimelineScreenState extends State<JobStatusTimelineScreen> with 
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      _providerData!['users']?['full_name'] ?? 'Provider',
+                                      _providerData!['full_name'] ?? 'Provider',
                                       style: const TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/supabase_service.dart';
-import 'booking_confirmation_screen.dart';
+import 'booking_submitted_screen.dart';
 
 class ProviderProfileScreen extends StatefulWidget {
   final String providerId;
@@ -543,13 +543,15 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => BookingConfirmationScreen(
-                              serviceId: _provider!['services']?.first ?? 'general',
-                              serviceName: _provider!['services']?.first ?? 'Service',
-                              price: hourlyRate.toDouble(),
-                              scheduledAt: DateTime.now().add(const Duration(days: 1)),
-                              providerId: widget.providerId,
-                              providerName: _provider!['name'] ?? 'Provider',
+                            builder: (context) => BookingSubmittedScreen(
+                              booking: {
+                                'service_name': _provider!['services']?.first ?? 'Service',
+                                'status': 'pending',
+                                'provider_id': widget.providerId,
+                                'provider_name': _provider!['name'] ?? 'Provider',
+                                'price': hourlyRate.toDouble(),
+                                'scheduled_date': DateTime.now().add(const Duration(days: 1)).toIso8601String(),
+                              },
                             ),
                           ),
                         );

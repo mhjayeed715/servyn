@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'service_booking_flow_screen.dart';
 import 'provider_list_screen.dart';
+import '../payment/payment_method_selection_screen.dart';
+import '../../../services/supabase_config.dart';
+import 'home_screen.dart';
 
 class TimeSlotSelectionScreen extends StatefulWidget {
   final ServiceCategory serviceCategory;
@@ -126,17 +129,34 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _processBooking();
+              _goToPayment();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEC9213),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('Confirm', style: TextStyle(color: Colors.white)),
+            child: const Text('Proceed to Payment', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _goToPayment() async {
+    // Navigate to payment method selection
+    final paymentResult = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PaymentMethodSelectionScreen(
+          amount: widget.provider.pricePerHour,
+          bookingId: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+        ),
+      ),
+    );
+
+    if (paymentResult != null && paymentResult['confirmed'] == true) {
+      _processBooking();
+    }
   }
 
   Future<void> _processBooking() async {
@@ -161,23 +181,53 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen> {
       ),
     );
 
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      // Get current user ID
+      final userId = SupabaseConfig.client.auth.currentUser?.id;
+      
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
 
-    // Simulate provider response - 30% chance of decline for demo
-    final isAccepted = DateTime.now().millisecond % 10 < 7;
+      // Save booking to database
+      await SupabaseConfig.client.from('bookings').insert({
+        'customer_id': userId,
+        'provider_id': widget.provider.id,
+        'service_category': widget.serviceCategory.name,
+        'service_location': widget.location,
+        'scheduled_date': _selectedDate.toIso8601String().split('T')[0],
+        'scheduled_time': _selectedTimeSlot,
+        'estimated_price': widget.provider.pricePerHour,
+        'status': 'confirmed',
+        'payment_status': 'paid',
+      });
 
-    Navigator.pop(context); // Close loading dialog
-
-    if (!isAccepted) {
-      // Provider declined - show auto-matching
-      _showAutoMatching();
-    } else {
       // Booking successful
+      Navigator.pop(context); // Close loading dialog
       _showSuccessDialog();
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      
+      // Show error dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Booking Failed'),
+            content: Text('Error: ${e.toString()}'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
     }
   }
 
-  Future<void> _showAutoMatching() async {
+  void _showSuccessDialog({bool isRematched = false}) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -185,56 +235,15 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.sync, size: 60, color: Color(0xFFEC9213)),
+            const Icon(Icons.check_circle, size: 60, color: Colors.green),
             const SizedBox(height: 16),
             const Text(
-              'Provider Declined',
+              'Booking Confirmed!',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF181511)),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Finding next available provider...',
-              style: TextStyle(color: Color(0xFF897961)),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            const CircularProgressIndicator(color: Color(0xFFEC9213)),
-          ],
-        ),
-      ),
-    );
-
-    await Future.delayed(const Duration(seconds: 3));
-    Navigator.pop(context); // Close auto-matching dialog
-
-    // Simulate finding another provider
-    final hasAlternative = DateTime.now().millisecond % 10 < 8;
-
-    if (hasAlternative) {
-      _showSuccessDialog(isRematched: true);
-    } else {
-      _showNoProvidersDialog();
-    }
-  }
-
-  void _showSuccessDialog({bool isRematched = false}) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.check_circle, size: 60, color: Colors.green),
-            const SizedBox(height: 16),
             Text(
-              isRematched ? 'Matched with New Provider!' : 'Booking Confirmed!',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF181511)),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isRematched
-                  ? 'We\'ve found another qualified provider for you'
-                  : 'Your service request has been confirmed',
+              isRematched ? 'Rematched with a new provider' : 'Your service request has been confirmed',
               style: const TextStyle(color: Color(0xFF897961)),
               textAlign: TextAlign.center,
             ),
@@ -245,16 +254,21 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen> {
                 color: Colors.green.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Column(
+              child: Column(
                 children: [
                   Text(
-                    'Booking ID: #BK2024001',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF181511)),
+                    'Service: ${widget.serviceCategory.name}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF181511)),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
-                    'Check your email for details',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF897961)),
+                    'Provider: ${widget.provider.name}',
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF897961)),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Date: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year} at $_selectedTimeSlot',
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF897961)),
                   ),
                 ],
               ),
@@ -264,7 +278,11 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen> {
         actions: [
           ElevatedButton(
             onPressed: () {
-              Navigator.popUntil(context, (route) => route.isFirst);
+              // Navigate back to home screen, removing all booking flow screens
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const HomeScreen()),
+                (route) => false,
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEC9213),
@@ -272,51 +290,6 @@ class _TimeSlotSelectionScreenState extends State<TimeSlotSelectionScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Done', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showNoProvidersDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.cancel_outlined, size: 60, color: Colors.orange[700]),
-            const SizedBox(height: 16),
-            const Text(
-              'No Providers Available',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF181511)),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'All providers in your area are currently unavailable',
-              style: TextStyle(color: Color(0xFF897961)),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Try Different Time'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context); // Go back to provider list
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Try expanding your search area')),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEC9213),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Expand Area', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

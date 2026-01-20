@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/services/session_service.dart';
 import '../../../services/supabase_config.dart';
 import '../auth/auth_choice_screen.dart';
+import '../../widgets/settings/language_theme_settings.dart';
 
 class ProviderSettingsScreen extends StatefulWidget {
   const ProviderSettingsScreen({Key? key}) : super(key: key);
@@ -427,21 +428,41 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
                     child: Column(
                       children: [
                         _buildSettingsTile(
+                          icon: Icons.language,
+                          title: 'Language & Theme',
+                          onTap: () {
+                            showLanguageThemeDialog(context);
+                          },
+                        ),
+                        const Divider(height: 1, indent: 56),
+                        _buildSettingsTile(
                           icon: Icons.calendar_month,
                           title: 'Availability & Calendar',
-                          onTap: () {},
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Availability calendar feature coming soon')),
+                            );
+                          },
                         ),
                         const Divider(height: 1, indent: 56),
                         _buildSettingsTile(
                           icon: Icons.notifications,
                           title: 'Notification Preferences',
-                          onTap: () {},
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Notification preferences feature coming soon')),
+                            );
+                          },
                         ),
                         const Divider(height: 1, indent: 56),
                         _buildSettingsTile(
                           icon: Icons.help,
                           title: 'Support & Help Center',
-                          onTap: () {},
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Support & help center feature coming soon')),
+                            );
+                          },
                           showDivider: false,
                         ),
                       ],

@@ -525,12 +525,14 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   Widget _buildScanFab() {
     return GestureDetector(
       onTap: _onScanTapped,
-      child: Container(
-        margin: const EdgeInsets.only(top: -28),
-        height: 56,
-        width: 56,
-        decoration: BoxDecoration(color: const Color(0xFF181511), borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)]),
-        child: const Icon(Icons.qr_code_scanner, color: Colors.white, size: 28),
+      child: Transform.translate(
+        offset: const Offset(0, -28),
+        child: Container(
+          height: 56,
+          width: 56,
+          decoration: BoxDecoration(color: const Color(0xFF181511), borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)]),
+          child: const Icon(Icons.qr_code_scanner, color: Colors.white, size: 28),
+        ),
       ),
     );
   }

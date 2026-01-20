@@ -25,12 +25,14 @@ dependencies:
   # Forms/Inputs
   intl: ^0.20.2  # For dates/Bangla
   geolocator: ^14.0.2  # Location
-  google_maps_flutter: ^2.14.0  # Maps
   geocoding: ^3.0.0  # Reverse geocoding
-  flutter_osm_plugin: ^1.0.3  # OpenStreetMap
   flutter_map: ^7.0.2  # OpenStreetMap with flutter_map
   latlong2: ^0.9.1  # Latitude/Longitude for flutter_map
   url_launcher: ^6.3.1  # Launch URLs, phone calls
+  flutter_polyline_points: ^2.0.0  # For route polylines
+  socket_io_client: ^2.0.3+1  # Real-time tracking
+  file_picker: ^8.1.4  # File uploads for complaints
+  flutter_rating_bar: ^4.0.1  # Rating widget for reviews
   # Utils
   dartz: ^0.10.1  # For Either/Failure
   http: ^1.2.2  # Network (if not Dio)
@@ -67,6 +69,7 @@ flutter_icons:
   min_sdk_android: 21
   adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: assets/images/logo/logo.png
+  adaptive_icon_padding: 20
 
 flutter_native_splash:
   color: "#FFFFFF"

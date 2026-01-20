@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import '../../../core/services/session_service.dart';
 import '../../../services/supabase_config.dart';
 import '../auth/auth_choice_screen.dart';
+import '../../widgets/settings/language_theme_settings.dart';
+import 'emergency_contacts_screen.dart';
+import 'sos_alerts_history_screen.dart';
 
 class CustomerSettingsScreen extends StatefulWidget {
-  const CustomerSettingsScreen({Key? key}) : super(key: key);
+  const CustomerSettingsScreen({super.key});
 
   @override
   State<CustomerSettingsScreen> createState() => _CustomerSettingsScreenState();
@@ -13,7 +16,6 @@ class CustomerSettingsScreen extends StatefulWidget {
 class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
-  bool _isBangla = true;
 
   @override
   void initState() {
@@ -216,17 +218,60 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                       _buildListTile(
                         icon: Icons.person,
                         title: 'Personal Information',
-                        onTap: () {},
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Edit profile feature coming soon')),
+                          );
+                        },
                       ),
                       _buildListTile(
                         icon: Icons.location_on,
                         title: 'Saved Addresses',
-                        onTap: () {},
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Saved addresses feature coming soon')),
+                          );
+                        },
                       ),
                       _buildListTile(
                         icon: Icons.credit_card,
                         title: 'Payment Methods',
-                        onTap: () {},
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Manage payment methods feature coming soon')),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+
+                  // Safety & Security Section
+                  _buildSection(
+                    'Safety & Security',
+                    [
+                      _buildListTile(
+                        icon: Icons.contacts,
+                        title: 'Emergency Contacts',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const EmergencyContactsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildListTile(
+                        icon: Icons.warning,
+                        title: 'SOS Alert History',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SosAlertsHistoryScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -236,15 +281,29 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                     'Preferences',
                     [
                       _buildListTile(
+                        icon: Icons.language,
+                        title: 'Language & Theme',
+                        onTap: () {
+                          showLanguageThemeDialog(context);
+                        },
+                      ),
+                      _buildListTile(
                         icon: Icons.notifications,
                         title: 'Notifications',
-                        onTap: () {},
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Notification settings feature coming soon')),
+                          );
+                        },
                       ),
-                      _buildLanguageToggle(),
                       _buildListTile(
                         icon: Icons.security,
                         title: 'Privacy & Security',
-                        onTap: () {},
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Privacy & security settings feature coming soon')),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -256,12 +315,20 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                       _buildListTile(
                         icon: Icons.help,
                         title: 'Help Center',
-                        onTap: () {},
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Help center feature coming soon')),
+                          );
+                        },
                       ),
                       _buildListTile(
                         icon: Icons.description,
                         title: 'Terms of Service',
-                        onTap: () {},
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Terms of service will be displayed here')),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -394,79 +461,6 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
       ),
       trailing: const Icon(Icons.chevron_right, color: Color(0xFF897961)),
       onTap: onTap,
-    );
-  }
-
-  Widget _buildLanguageToggle() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEC9213).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.translate, color: Color(0xFFEC9213), size: 20),
-          ),
-          const SizedBox(width: 16),
-          const Expanded(
-            child: Text(
-              'Language',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF181511),
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF4F3F0),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildLanguageButton('Eng', !_isBangla),
-                _buildLanguageButton('বাংলা', _isBangla),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLanguageButton(String text, bool isSelected) {
-    return GestureDetector(
-      onTap: () => setState(() => _isBangla = text == 'বাংলা'),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 4,
-                  ),
-                ]
-              : null,
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? const Color(0xFFEC9213) : const Color(0xFF897961),
-          ),
-        ),
-      ),
     );
   }
 }

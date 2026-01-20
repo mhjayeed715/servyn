@@ -10,6 +10,11 @@ import 'all_categories_screen.dart';
 import 'profile_edit_screen.dart';
 import 'customer_settings_screen.dart';
 import 'service_booking_flow_screen.dart';
+import '../tracking/live_tracking_screen.dart';
+import 'sos_alert_screen.dart';
+import 'complaints_list_screen.dart';
+import '../chat/chat_list_screen.dart';
+import 'booking_history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,7 +28,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _userName;
   String? _profilePhoto;
   bool _isLoading = true;
-  final bool _hasNotifications = true;
+  bool _hasNotifications = false;
+  int _unreadCount = 0;
   List<Map<String, dynamic>> _featuredProviders = [];
   bool _loadingProviders = true;
   
@@ -43,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadUserData();
     _loadFeaturedProviders();
+    _checkNotifications();
   }
 
   @override
@@ -124,6 +131,37 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       print('Error loading providers: $e');
       setState(() => _loadingProviders = false);
+    }
+  }
+
+  Future<void> _checkNotifications() async {
+    try {
+      final userId = await SessionService.getUserId();
+      if (userId == null) return;
+      
+      // Check for unread notifications or bookings
+      final notificationsResponse = await SupabaseConfig.client
+          .from('notifications')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('read', false);
+      
+      final bookingsResponse = await SupabaseConfig.client
+          .from('bookings')
+          .select('id')
+          .eq('customer_id', userId)
+          .inFilter('status', ['confirmed', 'in_progress']);
+      
+      final unreadNotifications = notificationsResponse.length;
+      final activeBookings = bookingsResponse.length;
+      final totalCount = unreadNotifications + activeBookings;
+      
+      setState(() {
+        _hasNotifications = totalCount > 0;
+        _unreadCount = totalCount;
+      });
+    } catch (e) {
+      debugPrint('Error checking notifications: $e');
     }
   }
 
@@ -254,15 +292,27 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             if (_hasNotifications)
                               Positioned(
-                                top: 8,
-                                right: 8,
+                                top: 6,
+                                right: 6,
                                 child: Container(
-                                  width: 10,
-                                  height: 10,
+                                  padding: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
                                     color: Colors.red,
                                     shape: BoxShape.circle,
                                     border: Border.all(color: Colors.white, width: 2),
+                                  ),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 18,
+                                    minHeight: 18,
+                                  ),
+                                  child: Text(
+                                    _unreadCount > 9 ? '9+' : _unreadCount.toString(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
                                   ),
                                 ),
                               ),
@@ -377,6 +427,69 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                     ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Quick Actions Section
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildQuickAction(
+                    icon: Icons.warning,
+                    label: 'SOS',
+                    color: Colors.red,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SosAlertScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildQuickAction(
+                    icon: Icons.chat_bubble_outline,
+                    label: 'Messages',
+                    color: Colors.blue,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ChatListScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildQuickAction(
+                    icon: Icons.report_problem_outlined,
+                    label: 'Complaints',
+                    color: Colors.orange,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ComplaintsListScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildQuickAction(
+                    icon: Icons.settings_outlined,
+                    label: 'Settings',
+                    color: Colors.grey,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CustomerSettingsScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -518,6 +631,44 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 12),
                           _buildActiveBookingCard(),
+                        ],
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Recent Bookings Section
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Recent Bookings',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF111418),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const BookingHistoryScreen(),
+                                    ),
+                                  );
+                                },
+                                child: const Text('View All'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _buildRecentBookingsList(),
                         ],
                       ),
                     ),
@@ -701,14 +852,10 @@ class _HomeScreenState extends State<HomeScreen> {
       
       final response = await SupabaseConfig.client
           .from('bookings')
-          .select('''
-            *,
-            provider_profiles!inner(business_name, user_id),
-            users!inner(phone)
-          ''')
+          .select('*,service_categories(*)')
           .eq('customer_id', userId)
-          .inFilter('status', ['confirmed', 'in_progress'])
-          .order('scheduled_date', ascending: true)
+          .inFilter('status', ['confirmed', 'provider_assigned', 'en_route', 'in_progress'])
+          .order('created_at', ascending: false)
           .limit(1)
           .maybeSingle();
       
@@ -835,7 +982,17 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // TODO: Track provider location
+                    // Navigate to live tracking
+                    final bookingId = booking['id'] ?? '';
+                    
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => LiveTrackingScreen(
+                          bookingId: bookingId,
+                        ),
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.location_on, size: 18),
                   label: const Text('Track Provider'),
@@ -865,6 +1022,218 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
               ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentBookingsList() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _loadRecentBookings(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            padding: const EdgeInsets.all(40),
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFF0F0F0)),
+            ),
+            child: const Center(
+              child: Text(
+                'No recent bookings',
+                style: TextStyle(color: Color(0xFF5F758C)),
+              ),
+            ),
+          );
+        }
+        
+        final bookings = snapshot.data!;
+        return Column(
+          children: bookings.map((booking) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _buildRecentBookingCard(booking),
+          )).toList(),
+        );
+      },
+    );
+  }
+  
+  Future<List<Map<String, dynamic>>> _loadRecentBookings() async {
+    try {
+      final userId = await SessionService.getUserId();
+      if (userId == null) return [];
+      
+      final response = await SupabaseConfig.client
+          .from('bookings')
+          .select('''
+            id,
+            service_category,
+            service_location,
+            scheduled_date,
+            scheduled_time,
+            estimated_price,
+            status,
+            payment_status,
+            created_at,
+            service_categories(*)
+          ''')
+          .eq('customer_id', userId)
+          .order('created_at', ascending: false)
+          .limit(3);
+      
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('Error loading recent bookings: $e');
+      return [];
+    }
+  }
+  
+  Widget _buildRecentBookingCard(Map<String, dynamic> booking) {
+    final status = booking['status'] ?? 'pending';
+    final serviceName = booking['service_categories']?['name'] ?? 'Service';
+    final scheduledDate = DateTime.tryParse(booking['scheduled_date'] ?? '');
+    final scheduledTime = booking['scheduled_time'] ?? '';
+    final price = booking['estimated_price'] ?? 0;
+    
+    Color statusColor;
+    Color statusBgColor;
+    IconData statusIcon;
+    
+    switch (status) {
+      case 'confirmed':
+        statusColor = Colors.blue.shade700;
+        statusBgColor = Colors.blue.shade50;
+        statusIcon = Icons.check_circle;
+        break;
+      case 'in_progress':
+        statusColor = Colors.orange.shade700;
+        statusBgColor = Colors.orange.shade50;
+        statusIcon = Icons.sync;
+        break;
+      case 'completed':
+        statusColor = Colors.green.shade700;
+        statusBgColor = Colors.green.shade50;
+        statusIcon = Icons.check_circle_outline;
+        break;
+      case 'cancelled':
+        statusColor = Colors.red.shade700;
+        statusBgColor = Colors.red.shade50;
+        statusIcon = Icons.cancel;
+        break;
+      default:
+        statusColor = Colors.grey.shade700;
+        statusBgColor = Colors.grey.shade50;
+        statusIcon = Icons.schedule;
+    }
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF0F0F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      serviceName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF111418),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Booking',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF5F758C),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: statusBgColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(statusIcon, size: 12, color: statusColor),
+                    const SizedBox(width: 4),
+                    Text(
+                      status.toUpperCase().replaceAll('_', ' '),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: statusColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
+              const SizedBox(width: 6),
+              Text(
+                scheduledDate != null
+                    ? '${_formatDate(scheduledDate)} at $scheduledTime'
+                    : 'Not scheduled',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF5F758C)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.payments, size: 14, color: Colors.grey[600]),
+                  const SizedBox(width: 6),
+                  Text(
+                    '৳${price.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryBlue,
+                    ),
+                  ),
+                ],
+              ),
+              if (status == 'completed')
+                TextButton(
+                  onPressed: () {
+                    // TODO: Navigate to review screen
+                  },
+                  child: const Text('Rate Service', style: TextStyle(fontSize: 12)),
+                ),
             ],
           ),
         ],
@@ -1061,5 +1430,39 @@ class _HomeScreenState extends State<HomeScreen> {
     } else {
       return '${date.day}/${date.month}/${date.year}, ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
     }
+  }
+
+  Widget _buildQuickAction({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade700,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'provider_list_screen.dart';
 import 'service_booking_flow_screen.dart';
+import 'location_input_screen.dart';
 
 class LocationPickerScreen extends StatefulWidget {
   final ServiceCategory serviceCategory;
@@ -191,6 +193,49 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   label: Text(_isLoadingLocation ? 'Getting Location...' : 'Use Current Location'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF42A5F5),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 52),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Pick from Map Button
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LocationInputScreen(
+                          initialCoordinates: _currentPosition != null
+                              ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+                              : null,
+                        ),
+                      ),
+                    );
+
+                    if (result != null) {
+                      setState(() {
+                        _addressController.text = result['address'] ?? '';
+                        _currentPosition = Position(
+                          longitude: result['longitude'],
+                          latitude: result['latitude'],
+                          timestamp: DateTime.now(),
+                          accuracy: 0,
+                          altitude: 0,
+                          heading: 0,
+                          speed: 0,
+                          speedAccuracy: 0,
+                          altitudeAccuracy: 0,
+                          headingAccuracy: 0,
+                        );
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.map),
+                  label: const Text('Select from Map'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEC9213),
                     foregroundColor: Colors.white,
                     minimumSize: const Size(double.infinity, 52),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

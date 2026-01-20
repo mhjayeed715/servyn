@@ -93,10 +93,11 @@ class _SplashScreenState extends State<SplashScreen> {
                     children: [
                       Image.asset(
                         'assets/images/logo/logo.png',
-                        width: screenWidth * 0.1,
-                        height: screenWidth * 0.1,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.contain,
                       ),
-                      SizedBox(width: screenWidth * 0.02),
+                      SizedBox(width: screenWidth * 0.04),
                       Text(
                         'Servyn',
                         style: TextStyle(

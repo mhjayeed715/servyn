@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'time_slot_selection_screen.dart';
 import 'service_booking_flow_screen.dart';
 import 'no_providers_screen.dart';
+import '../../../services/supabase_config.dart';
 
 class ProviderInfo {
   final String id;
@@ -69,17 +70,63 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
   Future<void> _loadProviders() async {
     setState(() => _isLoading = true);
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      // Fetch providers from Supabase database
+      final response = await SupabaseConfig.client
+          .from('provider_profiles')
+          .select('''
+            *,
+            users!provider_profiles_user_id_fkey (
+              id,
+              phone
+            )
+          ''')
+          .eq('service_category', widget.serviceCategory.name)
+          .eq('status', 'active')
+          .eq('verification_status', 'verified');
 
-    // Mock data - In real app, fetch from API based on location and service category
-    final mockProviders = _generateMockProviders();
+      final providers = (response as List).map((providerData) {
+        
+        return ProviderInfo(
+          id: providerData['id'] as String,
+          name: providerData['full_name'] ?? 'Provider',
+          imageUrl: 'https://via.placeholder.com/150',
+          rating: (providerData['rating'] ?? 5.0).toDouble(),
+          reviewCount: providerData['total_reviews'] ?? 0,
+          distanceKm: 2.5, // TODO: Calculate actual distance from coordinates
+          specialization: providerData['service_category'] ?? widget.serviceCategory.name,
+          pricePerHour: (providerData['hourly_rate'] ?? 500.0).toDouble(),
+          isAvailable: providerData['availability_status'] == 'available',
+          skills: (providerData['skills'] as List?)?.map((s) => s.toString()).toList() ?? ['Licensed', 'Experienced'],
+          completedJobs: providerData['total_jobs_completed'] ?? 0,
+          yearsExperience: providerData['years_of_experience'] ?? 1,
+        );
+      }).toList();
 
-    setState(() {
-      _providers = mockProviders;
-      _applyFilters();
-      _isLoading = false;
-    });
+      setState(() {
+        _providers = providers;
+        _applyFilters();
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading providers: $e');
+      
+      // Fallback to mock data if database query fails
+      setState(() {
+        _providers = _generateMockProviders();
+        _applyFilters();
+        _isLoading = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Using demo data: ${e.toString()}'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
   }
 
   List<ProviderInfo> _generateMockProviders() {

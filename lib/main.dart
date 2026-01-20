@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           
-          // Theme
+          // Theme - Apply proper theme data
           theme: AppTheme.lightTheme(),
           darkTheme: AppTheme.darkTheme(),
           themeMode: themeProvider.themeMode,
@@ -62,6 +62,11 @@ class MyApp extends StatelessWidget {
               }
             }
             return supportedLocales.first;
+          },
+          
+          // Use builder to apply theme colors to system UI
+          builder: (context, child) {
+            return child ?? const SizedBox.shrink();
           },
           
           // Routes

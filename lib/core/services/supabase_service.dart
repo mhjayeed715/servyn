@@ -641,7 +641,7 @@ class SupabaseService {
         for (var provider in providers) {
           allUsers.add({
             'id': provider['user_id'],
-            'name': provider['full_name'],
+            'name': provider['full_name'] ?? 'Provider',
             'email': 'N/A',
             'phone': provider['users']?['phone'] ?? 'N/A',
             'role': 'Provider',

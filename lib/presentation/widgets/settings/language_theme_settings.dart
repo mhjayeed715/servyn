@@ -18,7 +18,7 @@ class LanguageThemeSettings extends StatelessWidget {
         children: [
           // Language Selection
           Text(
-            AppLocalizations.of(context)?.language ?? 'Language',
+            AppLocalizations.of(context)?.translate('language') ?? 'Language',
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 16),
@@ -27,7 +27,7 @@ class LanguageThemeSettings extends StatelessWidget {
           
           // Theme Selection
           Text(
-            AppLocalizations.of(context)?.theme ?? 'Theme',
+            AppLocalizations.of(context)?.translate('theme') ?? 'Theme',
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 16),
