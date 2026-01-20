@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ComplaintFormScreen extends StatefulWidget {
   final String jobId;
@@ -61,35 +62,89 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
     });
   }
 
-  void _submitComplaint() {
+  Future<void> _submitComplaint() async {
     if (_selectedCategory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a category'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a category'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return;
     }
 
     if (_descriptionController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please provide a description'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please provide a description'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return;
     }
 
-    // TODO: Submit complaint to backend
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Complaint submitted successfully'),
-        backgroundColor: Colors.green,
-      ),
-    );
-    Navigator.pop(context);
+    try {
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id;
+
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Upload images to Supabase Storage if any
+      List<String> imageUrls = [];
+      if (_uploadedImages.isNotEmpty) {
+        for (int i = 0; i < _uploadedImages.length; i++) {
+          final file = _uploadedImages[i];
+          final fileName = 'complaint_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+          final path = 'complaints/$userId/$fileName';
+
+          await client.storage
+              .from('evidence-photos')
+              .upload(path, file);
+
+          final url = client.storage
+              .from('evidence-photos')
+              .getPublicUrl(path);
+          imageUrls.add(url);
+        }
+      }
+
+      // Insert complaint into database
+      await client.from('complaints').insert({
+        'booking_id': widget.jobId,
+        'customer_id': userId,
+        'category': _selectedCategory,
+        'severity': _selectedSeverity.toLowerCase(),
+        'description': _descriptionController.text.trim(),
+        'evidence_urls': imageUrls,
+        'status': 'pending',
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Complaint submitted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error submitting complaint: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -120,7 +175,7 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                children: <Widget>[
                   // Service Context Card
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -353,7 +408,7 @@ class _ComplaintFormScreenState extends State<ComplaintFormScreen> {
                   ),
 
                   // Uploaded Images
-                  if (_uploadedImages.isNotEmpty) ..[
+                  if (_uploadedImages.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     SizedBox(
                       height: 80,

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:async';
-import '../../../core/services/supabase_service.dart';
+import '../../../services/supabase_config.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class JobStatusTimelineScreen extends StatefulWidget {
@@ -91,10 +91,10 @@ class _JobStatusTimelineScreenState extends State<JobStatusTimelineScreen> with 
 
   Future<void> _loadBookingData() async {
     try {
-      final supabaseService = SupabaseService();
-      
       // Get booking details with service category
-      final bookingResponse = await supabaseService.client
+      final supabase = SupabaseConfig.client;
+      
+      final bookingResponse = await supabase
           .from('bookings')
           .select('*, service_categories(*)')
           .eq('id', widget.bookingId)
@@ -105,7 +105,7 @@ class _JobStatusTimelineScreenState extends State<JobStatusTimelineScreen> with 
 
       // Get provider details if assigned
       if (_bookingData!['provider_id'] != null) {
-        final providerResponse = await supabaseService.client
+        final providerResponse = await supabase
             .from('provider_profiles')
             .select('*, users(*)')
             .eq('user_id', _bookingData!['provider_id'])
@@ -123,7 +123,7 @@ class _JobStatusTimelineScreenState extends State<JobStatusTimelineScreen> with 
       }
 
       // Get status history
-      final historyResponse = await supabaseService.client
+      final historyResponse = await supabase
           .from('booking_status_history')
           .select()
           .eq('booking_id', widget.bookingId)
@@ -188,14 +188,14 @@ class _JobStatusTimelineScreenState extends State<JobStatusTimelineScreen> with 
 
     if (confirmed == true && mounted) {
       try {
-        final supabaseService = SupabaseService();
-        await supabaseService.client
+        final client = SupabaseConfig.client;
+        await client
             .from('bookings')
             .update({'status': 'cancelled'})
             .eq('id', widget.bookingId);
 
         // Add to history
-        await supabaseService.client.from('booking_status_history').insert({
+        await client.from('booking_status_history').insert({
           'booking_id': widget.bookingId,
           'status': 'cancelled',
           'notes': 'Cancelled by customer',

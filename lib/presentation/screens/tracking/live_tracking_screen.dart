@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:async';
-import '../../../core/services/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -55,10 +55,8 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> with SingleTick
 
   Future<void> _loadBookingData() async {
     try {
-      final supabaseService = SupabaseService();
-      
       // Get booking details
-      final bookingResponse = await supabaseService.client
+      final bookingResponse = await Supabase.instance.client
           .from('bookings')
           .select('*, service_categories(*)')
           .eq('id', widget.bookingId)
@@ -68,7 +66,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> with SingleTick
 
       // Get provider details
       if (_bookingData!['provider_id'] != null) {
-        final providerResponse = await supabaseService.client
+        final providerResponse = await Supabase.instance.client
             .from('provider_profiles')
             .select('*, users(*)')
             .eq('user_id', _bookingData!['provider_id'])
@@ -106,10 +104,8 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> with SingleTick
 
   Future<void> _updateProviderLocation() async {
     try {
-      final supabaseService = SupabaseService();
-      
       // Get provider's latest location from provider_locations table
-      final locationResponse = await supabaseService.client
+      final locationResponse = await Supabase.instance.client
           .from('provider_locations')
           .select()
           .eq('provider_id', _bookingData!['provider_id'])
@@ -151,10 +147,9 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> with SingleTick
 
     // Estimate time (assuming average speed of 30 km/h in city)
     final estimatedMinutes = (distance / 1000 / 30 * 60).round();
-    final estimatedTime = DateTime.now().add(Duration(minutes: estimatedMinutes));
 
     setState(() {
-      _eta = '${estimatedMinutes} mins';
+      _eta = '$estimatedMinutes mins';
       
       // Calculate progress based on original distance
       // Assuming progress increases as provider gets closer
@@ -259,8 +254,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> with SingleTick
 
     if (confirmed == true && mounted) {
       try {
-        final supabaseService = SupabaseService();
-        await supabaseService.client
+        await Supabase.instance.client
             .from('bookings')
             .update({'status': 'cancelled'})
             .eq('id', widget.bookingId);

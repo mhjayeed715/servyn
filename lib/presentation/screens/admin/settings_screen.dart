@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:clipboard/clipboard.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../widgets/settings/language_theme_settings.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -85,6 +86,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
                     activeColor: Colors.orange,
                   ),
+                ),
+                const SizedBox(height: 24),
+                _buildSectionHeader('Preferences'),
+                _buildActionCard(
+                  icon: Icons.language,
+                  title: 'Language & Theme',
+                  subtitle: 'Change app language and theme',
+                  color: Colors.indigo,
+                  onTap: () {
+                    showLanguageThemeDialog(context);
+                  },
                 ),
                 const SizedBox(height: 24),
                 _buildSectionHeader('Admin Actions'),

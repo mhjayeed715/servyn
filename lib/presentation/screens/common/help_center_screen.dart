@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 class HelpCenterScreen extends StatefulWidget {
   const HelpCenterScreen({super.key});
@@ -51,28 +52,59 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
     super.dispose();
   }
 
-  void _submitTicket() {
+  Future<void> _submitTicket() async {
     if (_subjectController.text.trim().isEmpty ||
         _descriptionController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill in all fields'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please fill in all fields'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return;
     }
 
-    // TODO: Submit to backend
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Ticket submitted successfully'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    try {
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id;
 
-    _subjectController.clear();
-    _descriptionController.clear();
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Insert help ticket into database
+      await client.from('help_tickets').insert({
+        'user_id': userId,
+        'topic': _selectedTopic.toLowerCase(),
+        'subject': _subjectController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'status': 'open',
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ticket submitted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        _subjectController.clear();
+        _descriptionController.clear();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error submitting ticket: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -274,7 +306,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                               ),
                             ],
                           ),
-                          if (isExpanded) ..[
+                          if (isExpanded) ...[
                             const SizedBox(height: 12),
                             Container(
                               height: 1,
@@ -289,7 +321,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                                 height: 1.5,
                               ),
                             ),
-                            if (faq['actions'].isNotEmpty) ..[
+                            if (faq['actions'].isNotEmpty) ...[
                               const SizedBox(height: 16),
                               Row(
                                 children: faq['actions'].map<Widget>((action) {

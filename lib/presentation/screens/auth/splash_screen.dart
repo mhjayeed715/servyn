@@ -91,9 +91,11 @@ class _SplashScreenState extends State<SplashScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.handyman,
-                          color: AppColors.primaryBlue,
-                          size: screenWidth * 0.08),
+                      Image.asset(
+                        'assets/images/logo/logo.png',
+                        width: screenWidth * 0.1,
+                        height: screenWidth * 0.1,
+                      ),
                       SizedBox(width: screenWidth * 0.02),
                       Text(
                         'Servyn',

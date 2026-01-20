@@ -53,10 +53,11 @@ class _AuthChoiceScreenState extends State<AuthChoiceScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.handyman,
-                          color: AppColors.primaryBlue,
-                          size: 40,
+                        Image.asset(
+                          'assets/images/logo/logo.png',
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.contain,
                         ),
                         const SizedBox(width: 12),
                         const Text(

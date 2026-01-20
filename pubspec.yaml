@@ -11,6 +11,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   # State Management
   provider: ^6.1.2
 
@@ -61,29 +63,29 @@ flutter:
 flutter_icons:
   android: true
   ios: true
-  image_path: assets/images/logo/servyn_logo.png
+  image_path: assets/images/logo/logo.png
   min_sdk_android: 21
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: assets/images/logo/servyn_logo.png
+  adaptive_icon_foreground: assets/images/logo/logo.png
 
 flutter_native_splash:
   color: "#FFFFFF"
-  image: assets/images/logo/servyn_logo.png
+  image: assets/images/logo/logo.png
   color_dark: "#0F172A"
-  image_dark: assets/images/logo/servyn_logo.png
+  image_dark: assets/images/logo/logo.png
   android_12:
     color: "#FFFFFF"
-    image: assets/images/logo/servyn_logo.png
+    image: assets/images/logo/logo.png
     icon_background_color: "#FFFFFF"
   web: true
 
-  fonts:
-    - family: Inter
-      fonts:
-        - asset: assets/fonts/Inter-VariableFont_opsz,wght.ttf
-        - asset: assets/fonts/Inter-Italic-VariableFont_opsz,wght.ttf
-          style: italic
+fonts:
+  - family: Inter
+    fonts:
+      - asset: assets/fonts/Inter-VariableFont_opsz,wght.ttf
+      - asset: assets/fonts/Inter-Italic-VariableFont_opsz,wght.ttf
+        style: italic
 
-    - family: NotoSansBengali
-      fonts:
-        - asset: assets/fonts/NotoSansBengali-VariableFont_wdth,wght.ttf
+  - family: NotoSansBengali
+    fonts:
+      - asset: assets/fonts/NotoSansBengali-VariableFont_wdth,wght.ttf
