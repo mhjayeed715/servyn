@@ -10,25 +10,32 @@ class BookingDeclineHandler {
 
   /// Initialize listening to booking decline events
   void initializeDeclineListener() {
-    _bookingStream = _supabase
-        .from('bookings')
-        .on(RealtimeListenTypes.postgresChanges,
-            ChannelFilter(event: '*', schema: 'public', table: 'bookings'))
-        .listen((payload) {
-      final data = payload.newRecord;
-      
-      // Check if status changed to declined
-      if (data['status'] == 'provider_declined') {
-        _handleProviderDecline(
-          bookingId: data['id'],
-          providerId: data['provider_id'],
-          customerId: data['customer_id'],
-          customerLat: data['customer_latitude'],
-          customerLng: data['customer_longitude'],
-          serviceCategory: data['service_category'],
-        );
-      }
-    });
+    final channel = _supabase.channel('public:bookings');
+    _bookingStream = channel
+      .on(
+        RealtimeListenTypes.postgresChanges,
+        ChannelFilter(
+          event: '*',
+          schema: 'public',
+          table: 'bookings',
+        ),
+        (payload, [ref]) {
+          final data = payload['new'];
+
+          // Check if status changed to declined
+          if (data != null && data['status'] == 'provider_declined') {
+            _handleProviderDecline(
+              bookingId: data['id'],
+              providerId: data['provider_id'],
+              customerId: data['customer_id'],
+              customerLat: data['customer_latitude'],
+              customerLng: data['customer_longitude'],
+              serviceCategory: data['service_category'],
+            );
+          }
+        },
+      )
+      .subscribe();
   }
 
   /// Handle when provider declines booking

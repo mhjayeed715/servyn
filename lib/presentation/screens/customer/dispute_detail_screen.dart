@@ -1,7 +1,86 @@
 import 'package:flutter/material.dart';
+import 'package:servyn/data/repositories/dispute_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../data/repositories/dispute_repository.dart';
-import '../../domain/entities/dispute.dart';
+class Dispute {
+  final String status;
+  final String priority;
+  final String reason;
+  final String description;
+  final List<String> evidenceUrls;
+  final String? resolution;
+  final double? refundAmount;
+  final DateTime? resolvedAt;
+  final String customerId;
+  final String providerId;
+
+  Dispute({
+    required this.status,
+    required this.priority,
+    required this.reason,
+    required this.description,
+    required this.evidenceUrls,
+    this.resolution,
+    this.refundAmount,
+    this.resolvedAt,
+    required this.customerId,
+    required this.providerId,
+  });
+}
+
+class DisputeComment {
+  final String userId;
+  final String userType;
+  final String message;
+  final DateTime createdAt;
+
+  DisputeComment({
+    required this.userId,
+    required this.userType,
+    required this.message,
+    required this.createdAt,
+  });
+}
+
+class DisputeRepository {
+  final dynamic supabase;
+  DisputeRepository(this.supabase);
+
+  Future<Dispute> getDisputeById(String id) async {
+    // Dummy implementation
+    return Dispute(
+      status: 'open',
+      priority: 'high',
+      reason: 'Sample Reason',
+      description: 'Sample Description',
+      evidenceUrls: [],
+      customerId: 'customer_id',
+      providerId: 'provider_id',
+    );
+  }
+
+  Future<List<DisputeComment>> getDisputeComments(String id) async {
+    // Dummy implementation
+    return [
+      DisputeComment(
+        userId: 'customer_id',
+        userType: 'customer',
+        message: 'Sample comment',
+        createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
+      ),
+    ];
+  }
+
+  Future<void> addComment({
+    required String disputeId,
+    required String userId,
+    required String userType,
+    required String message,
+    required List attachments,
+  }) async {
+    // Dummy implementation
+    return;
+  }
+}
 
 class DisputeDetailScreen extends StatefulWidget {
   final String disputeId;

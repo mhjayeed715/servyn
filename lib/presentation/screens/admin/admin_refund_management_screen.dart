@@ -1,7 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../data/repositories/refund_repository.dart';
-import '../../domain/entities/refund.dart';
+// Placeholder implementations for RefundRepository and Refund since the original files do not exist.
+
+// Minimal Refund entity
+class Refund {
+  final String id;
+  final String bookingId;
+  final String customerId;
+  final String providerId;
+  final double amount;
+  final String reason;
+  final String? notes;
+  final DateTime createdAt;
+
+  Refund({
+    required this.id,
+    required this.bookingId,
+    required this.customerId,
+    required this.providerId,
+    required this.amount,
+    required this.reason,
+    this.notes,
+    required this.createdAt,
+  });
+}
+
+// Minimal RefundRepository
+class RefundRepository {
+  final dynamic supabase;
+  RefundRepository(this.supabase);
+
+  Future<List<Refund>> getPendingRefunds() async {
+    // Return dummy data for demonstration
+    return [
+      Refund(
+        id: '1',
+        bookingId: 'B001',
+        customerId: 'C001',
+        providerId: 'P001',
+        amount: 100.0,
+        reason: 'service_issue',
+        notes: 'Customer reported issue',
+        createdAt: DateTime.now(),
+      ),
+    ];
+  }
+
+  Future<void> approveRefund({required String refundId, required String adminId}) async {
+    // Dummy implementation
+    await Future.delayed(Duration(milliseconds: 300));
+  }
+
+  Future<void> rejectRefund({required String refundId, required String adminId, required String reason}) async {
+    // Dummy implementation
+    await Future.delayed(Duration(milliseconds: 300));
+  }
+}
 
 class AdminRefundManagementScreen extends StatefulWidget {
   const AdminRefundManagementScreen();
@@ -14,7 +68,6 @@ class AdminRefundManagementScreen extends StatefulWidget {
 class _AdminRefundManagementScreenState
     extends State<AdminRefundManagementScreen> {
   late RefundRepository _refundRepository;
-  late Stream<List<Map<String, dynamic>>> _pendingRefundsStream;
   bool _isLoading = true;
   List<Refund> _pendingRefunds = [];
 

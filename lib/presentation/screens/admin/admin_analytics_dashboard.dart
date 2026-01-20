@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:servyn/services/analytics_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../services/analytics_service.dart';
 
 class AdminAnalyticsDashboard extends StatefulWidget {
   const AdminAnalyticsDashboard();
@@ -239,7 +239,7 @@ class _AdminAnalyticsDashboardState extends State<AdminAnalyticsDashboard> {
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(4),
                                 child: LinearProgressIndicator(
-                                  value: percentage,
+                                  value: percentage.toDouble(),
                                   minHeight: 8,
                                 ),
                               ),

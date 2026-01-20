@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../data/repositories/profile_repository.dart';
-import '../../domain/entities/profile.dart';
+import 'package:servyn/data/repositories/profile_repository.dart';
+import 'package:servyn/domain/entities/profile.dart';
 
 class EditCustomerProfileScreen extends StatefulWidget {
   final String customerId;

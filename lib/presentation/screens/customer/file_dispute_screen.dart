@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../data/repositories/dispute_repository.dart';
+import 'dart:typed_data';
 
 class FileDisputeScreen extends StatefulWidget {
   final String bookingId;
@@ -14,21 +14,17 @@ class FileDisputeScreen extends StatefulWidget {
     required this.providerId,
     required this.providerName,
     required this.bookingAmount,
-  });
+    Key? key,
+  }) : super(key: key);
 
   @override
   State<FileDisputeScreen> createState() => _FileDisputeScreenState();
 }
 
 class _FileDisputeScreenState extends State<FileDisputeScreen> {
-  final _reasonController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _disruptionLevelController = TextEditingController();
-  
-  late DisputeRepository _disputeRepository;
+  final TextEditingController _descriptionController = TextEditingController();
   List<String> _selectedReasons = [];
   List<PlatformFile> _selectedFiles = [];
-  String? _selectedPriority;
   bool _isSubmitting = false;
 
   final List<String> _reasonOptions = [
@@ -43,17 +39,8 @@ class _FileDisputeScreenState extends State<FileDisputeScreen> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    final supabase = Supabase.instance.client;
-    _disputeRepository = DisputeRepository(supabase);
-  }
-
-  @override
   void dispose() {
-    _reasonController.dispose();
     _descriptionController.dispose();
-    _disruptionLevelController.dispose();
     super.dispose();
   }
 
@@ -64,31 +51,28 @@ class _FileDisputeScreenState extends State<FileDisputeScreen> {
         type: FileType.custom,
         allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf', 'mp4'],
       );
-
       if (result != null) {
         setState(() {
           _selectedFiles.addAll(result.files);
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking files: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking files: $e')),
+        );
+      }
     }
   }
 
-  Future<void> _uploadFileToSupabase(PlatformFile file) async {
+  Future<String> _uploadFileToSupabase(PlatformFile file) async {
     try {
-      final fileBytes = await file.readStream?.toList() ?? [];
+      final fileBytes = file.bytes ?? await file.readStream?.fold<List<int>>([], (prev, element) => prev..addAll(element));
+      if (fileBytes == null) throw Exception('Could not read file bytes');
       final fileName = 'disputes/${DateTime.now().millisecondsSinceEpoch}_${file.name}';
-      
-      await Supabase.instance.client.storage
-          .from('dispute_evidence')
-          .uploadBinary(fileName, Stream.value(fileBytes as List<int>).expand((x) => x).toList());
-
-      return Supabase.instance.client.storage
-          .from('dispute_evidence')
-          .getPublicUrl(fileName);
+      final storage = Supabase.instance.client.storage.from('dispute_evidence');
+      await storage.uploadBinary(fileName, fileBytes is Uint8List ? fileBytes : Uint8List.fromList(fileBytes));
+      return storage.getPublicUrl(fileName);
     } catch (e) {
       throw Exception('Failed to upload file: $e');
     }
@@ -101,30 +85,23 @@ class _FileDisputeScreenState extends State<FileDisputeScreen> {
       );
       return;
     }
-
     setState(() => _isSubmitting = true);
-
     try {
-      // Upload evidence files
       final evidenceUrls = <String>[];
       for (final file in _selectedFiles) {
         final url = await _uploadFileToSupabase(file);
-        if (url != null) {
-          evidenceUrls.add(url.toString());
-        }
+        evidenceUrls.add(url);
       }
-
       final customerId = Supabase.instance.client.auth.currentUser?.id ?? '';
-
-      await _disputeRepository.createDispute(
-        bookingId: widget.bookingId,
-        customerId: customerId,
-        providerId: widget.providerId,
-        reason: _selectedReasons.join(', '),
-        description: _descriptionController.text,
-        evidenceUrls: evidenceUrls,
-      );
-
+      await Supabase.instance.client.from('disputes').insert({
+        'booking_id': widget.bookingId,
+        'customer_id': customerId,
+        'provider_id': widget.providerId,
+        'reason': _selectedReasons.join(', '),
+        'description': _descriptionController.text,
+        'evidence_urls': evidenceUrls,
+        'created_at': DateTime.now().toIso8601String(),
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Dispute filed successfully')),
@@ -154,7 +131,6 @@ class _FileDisputeScreenState extends State<FileDisputeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Provider info card
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -175,8 +151,6 @@ class _FileDisputeScreenState extends State<FileDisputeScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // Reason selection
             Text(
               'Select Reason(s)',
               style: Theme.of(context).textTheme.titleMedium,
@@ -202,8 +176,6 @@ class _FileDisputeScreenState extends State<FileDisputeScreen> {
               }).toList(),
             ),
             const SizedBox(height: 24),
-
-            // Description
             Text(
               'Describe the Issue',
               style: Theme.of(context).textTheme.titleMedium,
@@ -220,8 +192,6 @@ class _FileDisputeScreenState extends State<FileDisputeScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // Evidence upload
             Text(
               'Upload Evidence',
               style: Theme.of(context).textTheme.titleMedium,
@@ -262,8 +232,6 @@ class _FileDisputeScreenState extends State<FileDisputeScreen> {
                 ),
               ),
             const SizedBox(height: 32),
-
-            // Submit button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

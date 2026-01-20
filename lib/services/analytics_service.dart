@@ -16,9 +16,8 @@ class AnalyticsService {
           .from('bookings')
           .select()
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-        final bookingsCount = bookingsResp.data.length;
+          .lte('created_at', endDate.toIso8601String());
+        final bookingsCount = (bookingsResp as List).length;
 
         // Completed bookings
         final completedBookingsResp = await _supabase
@@ -26,29 +25,26 @@ class AnalyticsService {
           .select()
           .eq('status', 'completed')
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-        final completedBookingsCount = completedBookingsResp.data.length;
+          .lte('created_at', endDate.toIso8601String());
+        final completedBookingsCount = (completedBookingsResp as List).length;
 
         // Total revenue
       final revenueResp = await _supabase.from('bookings').select('amount')
-            .gte('created_at', startDate.toIso8601String())
-            .lte('created_at', endDate.toIso8601String())
-            .execute();
-      final revenueData = revenueResp.data as List;
+        .gte('created_at', startDate.toIso8601String())
+        .lte('created_at', endDate.toIso8601String());
+      final revenueData = revenueResp as List;
       double totalRevenue = 0;
       for (final booking in revenueData) {
         totalRevenue += (booking['amount'] as num?)?.toDouble() ?? 0.0;
       }
 
       // Average rating
-      final ratingsResp = await _supabase
+        final ratingsResp = await _supabase
           .from('reviews')
           .select('rating')
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-      final ratingsData = ratingsResp.data as List;
+          .lte('created_at', endDate.toIso8601String());
+        final ratingsData = ratingsResp as List;
       double averageRating = 0;
       if (ratingsData.isNotEmpty) {
         double totalRating = 0;
@@ -63,9 +59,8 @@ class AnalyticsService {
           .from('disputes')
           .select()
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-        final disputedCount = disputedResp.data.length;
+          .lte('created_at', endDate.toIso8601String());
+        final disputedCount = (disputedResp as List).length;
 
       return {
         'total_bookings': bookingsCount,
@@ -97,9 +92,8 @@ class AnalyticsService {
           .select()
           .eq('provider_id', providerId)
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-        final bookingsCount = bookingsResp.data.length;
+          .lte('created_at', endDate.toIso8601String());
+        final bookingsCount = (bookingsResp as List).length;
 
         // Completed bookings
         final completedResp = await _supabase
@@ -108,9 +102,8 @@ class AnalyticsService {
           .eq('provider_id', providerId)
           .eq('status', 'completed')
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-        final completedCount = completedResp.data.length;
+          .lte('created_at', endDate.toIso8601String());
+        final completedCount = (completedResp as List).length;
 
         // Declined bookings
         final declinedResp = await _supabase
@@ -119,34 +112,31 @@ class AnalyticsService {
           .eq('provider_id', providerId)
           .eq('status', 'declined')
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-        final declinedCount = declinedResp.data.length;
+          .lte('created_at', endDate.toIso8601String());
+        final declinedCount = (declinedResp as List).length;
 
       // Revenue
-      final revenueResp = await _supabase
+        final revenueResp = await _supabase
           .from('bookings')
           .select('amount')
           .eq('provider_id', providerId)
           .eq('status', 'completed')
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-      final revenueData = revenueResp.data as List;
+          .lte('created_at', endDate.toIso8601String());
+        final revenueData = revenueResp as List;
       double totalEarnings = 0;
       for (final booking in revenueData) {
         totalEarnings += (booking['amount'] as num?)?.toDouble() ?? 0.0;
       }
 
       // Average rating from reviews
-      final reviewsResp = await _supabase
+        final reviewsResp = await _supabase
           .from('reviews')
           .select('rating')
           .eq('provider_id', providerId)
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-      final reviewsData = reviewsResp.data as List;
+          .lte('created_at', endDate.toIso8601String());
+        final reviewsData = reviewsResp as List;
       double averageRating = 0;
       if (reviewsData.isNotEmpty) {
         double totalRating = 0;
@@ -184,9 +174,8 @@ class AnalyticsService {
           .select()
           .eq('customer_id', customerId)
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-        final bookingsCount = bookingsResp.data.length;
+          .lte('created_at', endDate.toIso8601String());
+        final bookingsCount = (bookingsResp as List).length;
 
         // Completed bookings
         final completedResp = await _supabase
@@ -195,33 +184,30 @@ class AnalyticsService {
           .eq('customer_id', customerId)
           .eq('status', 'completed')
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-        final completedCount = completedResp.data.length;
+          .lte('created_at', endDate.toIso8601String());
+        final completedCount = (completedResp as List).length;
 
       // Total spent
-      final spendingResp = await _supabase
+        final spendingResp = await _supabase
           .from('bookings')
           .select('amount')
           .eq('customer_id', customerId)
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-      final spendingData = spendingResp.data as List;
+          .lte('created_at', endDate.toIso8601String());
+        final spendingData = spendingResp as List;
       double totalSpent = 0;
       for (final booking in spendingData) {
         totalSpent += (booking['amount'] as num?)?.toDouble() ?? 0.0;
       }
 
       // Average rating given
-      final ratingsResp = await _supabase
+        final ratingsResp = await _supabase
           .from('reviews')
           .select('rating')
           .eq('customer_id', customerId)
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-      final ratingsData = ratingsResp.data as List;
+          .lte('created_at', endDate.toIso8601String());
+        final ratingsData = ratingsResp as List;
       double averageRatingGiven = 0;
       if (ratingsData.isNotEmpty) {
         double totalRating = 0;
@@ -237,9 +223,8 @@ class AnalyticsService {
           .select()
           .eq('customer_id', customerId)
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-        final disputesCount = disputesResp.data.length;
+          .lte('created_at', endDate.toIso8601String());
+        final disputesCount = (disputesResp as List).length;
 
       return {
         'total_bookings': bookingsCount,
@@ -262,14 +247,13 @@ class AnalyticsService {
     required DateTime endDate,
   }) async {
     try {
-      final revenueResp = await _supabase
+        final revenueResp = await _supabase
           .from('bookings')
           .select('service_category, amount')
           .eq('status', 'completed')
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-      final revenueData = revenueResp.data as List;
+          .lte('created_at', endDate.toIso8601String());
+        final revenueData = revenueResp as List;
       final categoryRevenue = <String, double>{};
       for (final booking in revenueData) {
         final category = booking['service_category'] ?? 'Unknown';
@@ -291,32 +275,27 @@ class AnalyticsService {
     required DateTime endDate,
   }) async {
     try {
-      final bookingsData = await _supabase
+      final bookingsResp = await _supabase
           .from('bookings')
           .select('created_at, status')
           .gte('created_at', startDate.toIso8601String())
           .lte('created_at', endDate.toIso8601String())
           .order('created_at', ascending: true);
-
+      final bookingsData = bookingsResp as List;
       final dailyTrends = <String, Map<String, int>>{};
-
-      for (final booking in bookingsData as List) {
+      for (final booking in bookingsData) {
         final date = DateTime.parse(booking['created_at']).toString().split(' ')[0];
         final status = booking['status'] ?? 'unknown';
-
         if (!dailyTrends.containsKey(date)) {
           dailyTrends[date] = {'total': 0, 'completed': 0, 'pending': 0};
         }
-
         dailyTrends[date]!['total'] = (dailyTrends[date]!['total'] ?? 0) + 1;
-
         if (status == 'completed') {
           dailyTrends[date]!['completed'] = (dailyTrends[date]!['completed'] ?? 0) + 1;
         } else if (status == 'pending') {
           dailyTrends[date]!['pending'] = (dailyTrends[date]!['pending'] ?? 0) + 1;
         }
       }
-
       return dailyTrends.entries
           .map((e) => {
                 'date': e.key,
@@ -335,23 +314,20 @@ class AnalyticsService {
     required int limit,
   }) async {
     try {
-      final providersData = await _supabase
+      final providersResp = await _supabase
           .from('provider_profiles')
           .select('id, full_name, average_rating, completed_jobs, total_reviews');
-
+      final providersData = providersResp as List;
       final providers = <Map<String, dynamic>>[];
-
-      for (final provider in providersData as List) {
+      for (final provider in providersData) {
         final completedBookingsResp = await _supabase
           .from('bookings')
           .select()
           .eq('provider_id', provider['id'])
           .eq('status', 'completed')
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-        final completedBookingsCount = completedBookingsResp.data.length;
-
+          .lte('created_at', endDate.toIso8601String());
+        final completedBookingsCount = (completedBookingsResp as List).length;
         providers.add({
           'id': provider['id'],
           'name': provider['full_name'],
@@ -360,15 +336,12 @@ class AnalyticsService {
           'total_reviews': provider['total_reviews'],
         });
       }
-
-      // Sort by completed jobs and rating
       providers.sort((a, b) {
         final jobsCompare =
             (b['completed_jobs'] as int).compareTo(a['completed_jobs'] as int);
         if (jobsCompare != 0) return jobsCompare;
         return (b['rating'] as num).compareTo(a['rating'] as num);
       });
-
       return providers.take(limit).toList();
     } catch (e) {
       throw Exception('Failed to fetch top providers: $e');
@@ -385,29 +358,25 @@ class AnalyticsService {
           .from('customer_profiles')
           .select()
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-        final newCustomers = newCustomersResp.data.length;
+          .lte('created_at', endDate.toIso8601String());
+        final newCustomers = (newCustomersResp as List).length;
 
         final newProvidersResp = await _supabase
           .from('provider_profiles')
           .select()
           .gte('created_at', startDate.toIso8601String())
-          .lte('created_at', endDate.toIso8601String())
-          .execute();
-        final newProviders = newProvidersResp.data.length;
+          .lte('created_at', endDate.toIso8601String());
+        final newProviders = (newProvidersResp as List).length;
 
         final totalCustomersResp = await _supabase
           .from('customer_profiles')
-          .select()
-          .execute();
-        final totalCustomers = totalCustomersResp.data.length;
+          .select();
+        final totalCustomers = (totalCustomersResp as List).length;
 
         final totalProvidersResp = await _supabase
           .from('provider_profiles')
-          .select()
-          .execute();
-        final totalProviders = totalProvidersResp.data.length;
+          .select();
+        final totalProviders = (totalProvidersResp as List).length;
 
         return {
         'new_customers': newCustomers,
