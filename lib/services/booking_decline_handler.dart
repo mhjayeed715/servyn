@@ -4,38 +4,33 @@ import 'dart:math';
 
 class BookingDeclineHandler {
   final SupabaseClient _supabase;
-  late StreamSubscription _bookingStream;
+  RealtimeChannel? _channel;
 
   BookingDeclineHandler(this._supabase);
 
   /// Initialize listening to booking decline events
   void initializeDeclineListener() {
-    final channel = _supabase.channel('public:bookings');
-    _bookingStream = channel
-      .on(
-        RealtimeListenTypes.postgresChanges,
-        ChannelFilter(
-          event: '*',
+    _channel = _supabase.channel('public:bookings');
+    _channel!
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'bookings',
-        ),
-        (payload, [ref]) {
-          final data = payload['new'];
-
-          // Check if status changed to declined
-          if (data != null && data['status'] == 'provider_declined') {
-            _handleProviderDecline(
-              bookingId: data['id'],
-              providerId: data['provider_id'],
-              customerId: data['customer_id'],
-              customerLat: data['customer_latitude'],
-              customerLng: data['customer_longitude'],
-              serviceCategory: data['service_category'],
-            );
-          }
-        },
-      )
-      .subscribe();
+          callback: (payload) async {
+            final data = payload.newRecord;
+            if (data['status'] == 'provider_declined') {
+              await _handleProviderDecline(
+                bookingId: data['id'],
+                providerId: data['provider_id'],
+                customerId: data['customer_id'],
+                customerLat: (data['customer_latitude'] as num?)?.toDouble() ?? 0.0,
+                customerLng: (data['customer_longitude'] as num?)?.toDouble() ?? 0.0,
+                serviceCategory: data['service_category'],
+              );
+            }
+          },
+        )
+        .subscribe();
   }
 
   /// Handle when provider declines booking
@@ -48,7 +43,6 @@ class BookingDeclineHandler {
     required String serviceCategory,
   }) async {
     try {
-      // Immediately update to declined status
       await _supabase
           .from('bookings')
           .update({
@@ -58,20 +52,17 @@ class BookingDeclineHandler {
           })
           .eq('id', bookingId);
 
-      // Notify customer about decline
       await _notifyCustomerOfDecline(customerId, bookingId);
 
-      // Attempt auto-assign to next provider
-      // Delayed to give customer time to see notification
-      Future.delayed(const Duration(seconds: 2), () {
-        _attemptAutoReassign(
-          bookingId: bookingId,
-          rejectedProviderId: providerId,
-          customerLat: customerLat,
-          customerLng: customerLng,
-          serviceCategory: serviceCategory,
-        );
-      });
+      // Wait 2 seconds before attempting auto-reassign
+      await Future.delayed(const Duration(seconds: 2));
+      await _attemptAutoReassign(
+        bookingId: bookingId,
+        rejectedProviderId: providerId,
+        customerLat: customerLat,
+        customerLng: customerLng,
+        serviceCategory: serviceCategory,
+      );
     } catch (e) {
       print('Error handling provider decline: $e');
     }
@@ -128,27 +119,19 @@ class BookingDeclineHandler {
           .eq('service_category', serviceCategory)
           .eq('verification_status', 'verified')
           .eq('is_active', true);
-
-      // Filter by distance and availability
       final providers = <Map<String, dynamic>>[];
-
       for (final provider in response as List) {
         if (provider['id'] == excludeProviderId) continue;
-
-        // Check if within reasonable distance (15km default)
         final distance = _calculateDistance(
           customerLat,
           customerLng,
-          provider['latitude'] ?? 0.0,
-          provider['longitude'] ?? 0.0,
+          (provider['latitude'] as num?)?.toDouble() ?? 0.0,
+          (provider['longitude'] as num?)?.toDouble() ?? 0.0,
         );
-
         if (distance <= 15) {
           providers.add(provider);
         }
       }
-
-      // Sort by rating (highest first) then by distance
       providers.sort((a, b) {
         final ratingCompare = (b['average_rating'] ?? 0)
             .compareTo(a['average_rating'] ?? 0);
@@ -156,16 +139,15 @@ class BookingDeclineHandler {
         return _calculateDistance(
           customerLat,
           customerLng,
-          a['latitude'] ?? 0.0,
-          a['longitude'] ?? 0.0,
+          (a['latitude'] as num?)?.toDouble() ?? 0.0,
+          (a['longitude'] as num?)?.toDouble() ?? 0.0,
         ).compareTo(_calculateDistance(
           customerLat,
           customerLng,
-          b['latitude'] ?? 0.0,
-          b['longitude'] ?? 0.0,
+          (b['latitude'] as num?)?.toDouble() ?? 0.0,
+          (b['longitude'] as num?)?.toDouble() ?? 0.0,
         ));
       });
-
       return providers;
     } catch (e) {
       print('Error getting nearby providers: $e');
@@ -220,20 +202,22 @@ class BookingDeclineHandler {
   /// Notify customer no providers available
   Future<void> _notifyCustomerNoProvidersAvailable(String bookingId) async {
     try {
-      final booking = await _supabase
+      final bookingResp = await _supabase
           .from('bookings')
           .select('customer_id')
           .eq('id', bookingId)
-          .single();
-
-      await _supabase.from('notifications').insert({
-        'user_id': booking['customer_id'],
-        'type': 'no_providers_available',
-        'title': 'No Providers Available',
-        'body': 'We could not find providers in your area right now. Please try again later.',
-        'booking_id': bookingId,
-        'created_at': DateTime.now().toIso8601String(),
-      });
+          .maybeSingle();
+      final booking = bookingResp;
+      if (booking != null && booking['customer_id'] != null) {
+        await _supabase.from('notifications').insert({
+          'user_id': booking['customer_id'],
+          'type': 'no_providers_available',
+          'title': 'No Providers Available',
+          'body': 'We could not find providers in your area right now. Please try again later.',
+          'booking_id': bookingId,
+          'created_at': DateTime.now().toIso8601String(),
+        });
+      }
     } catch (e) {
       print('Error notifying customer of no availability: $e');
     }
@@ -241,6 +225,6 @@ class BookingDeclineHandler {
 
   /// Cleanup listener
   void dispose() {
-    _bookingStream.cancel();
+    _channel?.unsubscribe();
   }
 }

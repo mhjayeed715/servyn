@@ -1,5 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestResponse;
+import 'dart:async';
 import 'package:uuid/uuid.dart';
 
 class NotificationService {
@@ -14,7 +16,7 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
   final SupabaseClient _supabase = Supabase.instance.client;
-  late StreamSubscription _notificationListener;
+  StreamSubscription? _notificationListener;
 
   Future<void> initialize() async {
     // Initialize local notifications
@@ -49,8 +51,7 @@ class NotificationService {
         .eq('user_id', userId)
         .eq('read', false)
         .listen(
-          (List<Map<String, dynamic>> data) {
-            // Show notification for each new unread notification
+          (data) {
             for (final notification in data) {
               _showLocalNotification(
                 title: notification['title'] ?? 'Notification',
@@ -106,7 +107,7 @@ class NotificationService {
 
   /// Handle notification tap
   void _handleNotificationTap(String? payload) {
-    if (payload == null) return;
+    if (payload == null || payload.isEmpty) return;
     print('Notification tapped with payload: $payload');
     // Navigate based on notification type if needed
   }
@@ -169,14 +170,18 @@ class NotificationService {
   /// Get unread notifications count
   Future<int> getUnreadNotificationsCount(String userId) async {
     try {
-      final count = await _supabase
+      final resp = await _supabase
           .from('notifications')
-          .select()
+          .select('id', const {'count': 'exact'})
           .eq('user_id', userId)
-          .eq('read', false)
-          .count();
-
-      return count;
+          .eq('read', false);
+      // For Supabase Dart, count is in resp.count if using .select(..., {'count': 'exact'})
+      if (resp is PostgrestResponse && resp.count != null) {
+        return resp.count!;
+      } else if (resp is Map && resp['count'] != null) {
+        return resp['count'] as int;
+      }
+      return 0;
     } catch (e) {
       print('Error getting unread count: $e');
       return 0;
@@ -185,7 +190,7 @@ class NotificationService {
 
   /// Cleanup resources
   void dispose() {
-    _notificationListener.cancel();
+    _notificationListener?.cancel();
   }
 }
 

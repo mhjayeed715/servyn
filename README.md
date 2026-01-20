@@ -12,10 +12,10 @@ A Flutter-based mobile app for reliable local service booking in Bangladesh (ele
 
 ## Tech Stack
 - Flutter (Cross-platform)
-- Firebase (Auth, Firestore, Messaging)
+- Supabase (Auth)
 
 
 ## Setup
 1. `flutter pub get`
-2. Set up Firebase (add google-services.json / GoogleService-Info.plist)
+2. Set up Supabase
 3. `flutter run`
