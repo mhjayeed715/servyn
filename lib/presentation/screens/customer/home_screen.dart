@@ -2,9 +2,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../../core/services/session_service.dart';
 import '../../../services/supabase_config.dart';
 import '../auth/auth_choice_screen.dart';
-import 'service_category_screen.dart';
+import 'provider_search_screen.dart';
+import 'all_categories_screen.dart';
+import 'profile_edit_screen.dart';
+import 'customer_settings_screen.dart';
+import 'service_booking_flow_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +24,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _profilePhoto;
   bool _isLoading = true;
   final bool _hasNotifications = true;
+  List<Map<String, dynamic>> _featuredProviders = [];
+  bool _loadingProviders = true;
   
   final List<Map<String, dynamic>> _categories = [
     {'icon': Icons.electrical_services, 'name': 'Electrician'},
@@ -27,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
     {'icon': Icons.yard, 'name': 'Gardening'},
     {'icon': Icons.construction, 'name': 'Carpentry'},
     {'icon': Icons.format_paint, 'name': 'Painting'},
+    {'icon': Icons.school, 'name': 'Tutor'},
     {'icon': Icons.grid_view, 'name': 'More'},
   ];
 
@@ -34,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadUserData();
+    _loadFeaturedProviders();
   }
 
   @override
@@ -43,25 +52,78 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadUserData() async {
+    print('📋 Loading user data for HomeScreen...');
     setState(() => _isLoading = true);
     
     try {
-      final user = SupabaseConfig.client.auth.currentUser;
-      if (user != null) {
-        final profile = await SupabaseConfig.client
-            .from('customer_profiles')
-            .select('full_name, email, profile_photo_base64')
-            .eq('user_id', user.id)
-            .single();
-        
-        setState(() {
-          _userName = profile['full_name'];
-          _profilePhoto = profile['profile_photo_base64'];
-          _isLoading = false;
-        });
+      // Try to get user ID from session service first (since we manage session manually)
+      String? userId = await SessionService.getUserId();
+      // Fallback to Supabase auth user if session is empty (legacy/backup)
+      if (userId == null) {
+        userId = SupabaseConfig.client.auth.currentUser?.id;
+      }
+      
+      print('🔍 Current user ID: $userId');
+      
+      if (userId != null) {
+        try {
+          final profile = await SupabaseConfig.client
+              .from('customer_profiles')
+              .select('full_name, email, profile_photo_base64')
+              .eq('user_id', userId)
+              .maybeSingle();
+          
+          if (profile != null) {
+            print('✅ Profile loaded successfully: ${profile['full_name']}');
+            setState(() {
+              _userName = profile['full_name'];
+              _profilePhoto = profile['profile_photo_base64'];
+              _isLoading = false;
+            });
+          } else {
+             print('⚠️ Profile not found for userId: $userId');
+             setState(() {
+              _userName = 'User';
+              _isLoading = false;
+             });
+          }
+        } catch (profileError) {
+          print('❌ Profile query error: $profileError');
+          // If profile query fails, still show the home screen with default values
+          setState(() {
+            _userName = 'User';
+            _isLoading = false;
+          });
+        }
+      } else {
+        print('❌ No authenticated user found in SessionService or SupabaseAuth');
+        setState(() => _isLoading = false);
       }
     } catch (e) {
+      print('❌ Error loading user data: $e');
       setState(() => _isLoading = false);
+    }
+  }
+  
+  Future<void> _loadFeaturedProviders() async {
+    setState(() => _loadingProviders = true);
+    try {
+      final response = await SupabaseConfig.client
+          .from('provider_profiles')
+          .select('''
+            *,
+            users!inner(phone)
+          ''')
+          .eq('verification_status', 'verified')
+          .limit(5);
+      
+      setState(() {
+        _featuredProviders = List<Map<String, dynamic>>.from(response);
+        _loadingProviders = false;
+      });
+    } catch (e) {
+      print('Error loading providers: $e');
+      setState(() => _loadingProviders = false);
     }
   }
 
@@ -118,22 +180,32 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Row(
                           children: [
-                            // Profile Avatar
-                            CircleAvatar(
-                              radius: 20,
-                              backgroundColor: Colors.grey[200],
-                              backgroundImage: _profilePhoto != null
-                                  ? MemoryImage(base64Decode(_profilePhoto!))
-                                  : null,
-                              child: _profilePhoto == null
-                                  ? Text(
-                                      _userName?.substring(0, 1).toUpperCase() ?? 'U',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.primaryBlue,
-                                      ),
-                                    )
-                                  : null,
+                            // Profile Avatar - tap to go to profile
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const ProfileEditScreen(),
+                                  ),
+                                );
+                              },
+                              child: CircleAvatar(
+                                radius: 20,
+                                backgroundColor: Colors.grey[200],
+                                backgroundImage: _profilePhoto != null
+                                    ? MemoryImage(base64Decode(_profilePhoto!))
+                                    : null,
+                                child: _profilePhoto == null
+                                    ? Text(
+                                        _userName?.substring(0, 1).toUpperCase() ?? 'U',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.primaryBlue,
+                                        ),
+                                      )
+                                    : null,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Column(
@@ -172,7 +244,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: IconButton(
                                 icon: const Icon(Icons.notifications_outlined),
                                 onPressed: () {
-                                  // TODO: Navigate to notifications
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Notifications feature coming soon!'),
+                                    ),
+                                  );
                                 },
                               ),
                             ),
@@ -226,7 +302,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                 border: InputBorder.none,
                               ),
                               onSubmitted: (value) {
-                                // TODO: Implement search
+                                if (value.trim().isNotEmpty) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ProviderSearchScreen(
+                                        initialQuery: value.trim(),
+                                      ),
+                                    ),
+                                  );
+                                }
                               },
                             ),
                           ),
@@ -236,8 +321,58 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: AppColors.primaryBlue,
                             ),
                             onPressed: () {
-                              // TODO: Implement voice search
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Voice Search'),
+                                  content: const Text('Voice search feature coming soon!'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('OK'),
+                                    ),
+                                  ],
+                                ),
+                              );
                             },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  // Book Service Button
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ServiceBookingFlowScreen(),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFEC9213),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 4,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.calendar_today, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'Book a Service',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
@@ -271,7 +406,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           TextButton(
                             onPressed: () {
-                              // TODO: Navigate to all categories
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const AllCategoriesScreen(),
+                                ),
+                              );
                             },
                             child: const Text(
                               'See all',
@@ -302,17 +442,20 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: GestureDetector(
                               onTap: () {
                                 if (category['name'] != 'More') {
+                                  // Navigate to new booking flow
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => ServiceCategoryScreen(
-                                        categoryName: category['name'],
-                                        categoryIcon: category['icon'],
-                                      ),
+                                      builder: (context) => const ServiceBookingFlowScreen(),
                                     ),
                                   );
                                 } else {
-                                  // TODO: Navigate to all categories
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const AllCategoriesScreen(),
+                                    ),
+                                  );
                                 }
                               },
                               child: Column(
@@ -435,7 +578,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildNavItem(Icons.home, 'Home', 0, true),
                 _buildNavItem(Icons.calendar_month_outlined, 'Bookings', 1, false),
                 _buildNavItem(Icons.chat_bubble_outline, 'Messages', 2, false),
-                _buildNavItem(Icons.person_outline, 'Profile', 3, false),
+                _buildNavItem(Icons.settings_outlined, 'Settings', 3, false),
               ],
             ),
           ),
@@ -448,11 +591,26 @@ class _HomeScreenState extends State<HomeScreen> {
     return GestureDetector(
       onTap: () {
         if (index == 3) {
-          // TODO: Navigate to profile
+          // Navigate to customer settings
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CustomerSettingsScreen(),
+            ),
+          ).then((result) {
+            if (result == true) {
+              // Reload profile data if updated
+              _loadUserData();
+            }
+          });
         } else if (index == 1) {
-          // TODO: Navigate to bookings
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Booking history screen coming soon!')),
+          );
         } else if (index == 2) {
-          // TODO: Navigate to messages
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Messages screen coming soon!')),
+          );
         }
       },
       onLongPress: index == 3 ? () {
@@ -471,7 +629,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Navigator.pop(context);
                   _logout();
                 },
-                child: const Text('Logout'),
+                child: const Text('Logout', style: TextStyle(color: Colors.red)),
               ),
             ],
           ),
@@ -503,8 +661,69 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildActiveBookingCard() {
-    // TODO: Fetch from Supabase bookings table
-    // For now showing placeholder
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _loadActiveBooking(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            padding: const EdgeInsets.all(40),
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        
+        if (!snapshot.hasData || snapshot.data == null) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFF0F0F0)),
+            ),
+            child: const Center(
+              child: Text(
+                'No active bookings',
+                style: TextStyle(color: Color(0xFF5F758C)),
+              ),
+            ),
+          );
+        }
+        
+        final booking = snapshot.data!;
+        return _buildBookingCard(booking);
+      },
+    );
+  }
+  
+  Future<Map<String, dynamic>?> _loadActiveBooking() async {
+    try {
+      final userId = await SessionService.getUserId();
+      if (userId == null) return null;
+      
+      final response = await SupabaseConfig.client
+          .from('bookings')
+          .select('''
+            *,
+            provider_profiles!inner(business_name, user_id),
+            users!inner(phone)
+          ''')
+          .eq('customer_id', userId)
+          .inFilter('status', ['confirmed', 'in_progress'])
+          .order('scheduled_date', ascending: true)
+          .limit(1)
+          .maybeSingle();
+      
+      return response;
+    } catch (e) {
+      print('Error loading active booking: $e');
+      return null;
+    }
+  }
+  
+  Widget _buildBookingCard(Map<String, dynamic> booking) {
+    final status = booking['status'] ?? 'confirmed';
+    final serviceName = booking['service_name'] ?? 'Service';
+    final scheduledDate = DateTime.tryParse(booking['scheduled_date'] ?? '');
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -531,7 +750,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.green.shade50,
+                        color: status == 'in_progress' ? Colors.orange.shade50 : Colors.green.shade50,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -540,18 +759,18 @@ class _HomeScreenState extends State<HomeScreen> {
                           Container(
                             width: 6,
                             height: 6,
-                            decoration: const BoxDecoration(
-                              color: Colors.green,
+                            decoration: BoxDecoration(
+                              color: status == 'in_progress' ? Colors.orange : Colors.green,
                               shape: BoxShape.circle,
                             ),
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            'CONFIRMED',
+                            status.toUpperCase().replaceAll('_', ' '),
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: Colors.green.shade700,
+                              color: status == 'in_progress' ? Colors.orange.shade700 : Colors.green.shade700,
                               letterSpacing: 0.5,
                             ),
                           ),
@@ -559,26 +778,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Home Cleaning',
-                      style: TextStyle(
+                    Text(
+                      serviceName,
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF111418),
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Row(
+                    Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.calendar_today,
                           size: 16,
                           color: Color(0xFF5F758C),
                         ),
-                        SizedBox(width: 6),
+                        const SizedBox(width: 6),
                         Text(
-                          'Tomorrow, 10:00 AM',
-                          style: TextStyle(
+                          scheduledDate != null
+                              ? '${_formatDate(scheduledDate)}'
+                              : 'Not scheduled',
+                          style: const TextStyle(
                             fontSize: 14,
                             color: Color(0xFF5F758C),
                           ),
@@ -652,26 +873,45 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildRecommendationsList() {
-    // TODO: Fetch from Supabase provider_profiles table
-    // For now showing placeholder data
+    if (_loadingProviders) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
+    if (_featuredProviders.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Text(
+            'No providers available yet',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+        ),
+      );
+    }
+    
     return Column(
-      children: [
-        _buildRecommendationCard(
-          name: 'John Doe',
-          specialty: 'Master Electrician',
-          rating: 4.9,
-          reviews: 120,
-          price: '\$50/hr',
-        ),
-        const SizedBox(height: 12),
-        _buildRecommendationCard(
-          name: 'Elite Gardens',
-          specialty: 'Landscaping',
-          rating: 4.8,
-          reviews: 85,
-          price: '\$80/visit',
-        ),
-      ],
+      children: _featuredProviders.map((provider) {
+        final hourlyRate = provider['hourly_rate'] ?? 50;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _buildRecommendationCard(
+            name: provider['full_name'] ?? 'Unknown',
+            specialty: (provider['services'] as List?)?.first ?? 'Service Provider',
+            rating: (provider['rating'] ?? provider['average_rating'] ?? 4.5).toDouble(),
+            reviews: provider['total_reviews'] ?? 0,
+            price: '৳$hourlyRate/hr',
+            profilePhoto: provider['profile_photo_base64'],
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -681,6 +921,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required double rating,
     required int reviews,
     required String price,
+    String? profilePhoto,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -705,12 +946,20 @@ class _HomeScreenState extends State<HomeScreen> {
             decoration: BoxDecoration(
               color: Colors.grey[200],
               borderRadius: BorderRadius.circular(12),
+              image: profilePhoto != null
+                  ? DecorationImage(
+                      image: MemoryImage(base64Decode(profilePhoto)),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
             ),
-            child: const Icon(
-              Icons.person,
-              size: 40,
-              color: AppColors.primaryBlue,
-            ),
+            child: profilePhoto == null
+                ? const Icon(
+                    Icons.person,
+                    size: 40,
+                    color: AppColors.primaryBlue,
+                  )
+                : null,
           ),
           const SizedBox(width: 16),
           
@@ -798,5 +1047,19 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+  
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    
+    if (dateOnly == DateTime(now.year, now.month, now.day)) {
+      return 'Today, ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (dateOnly == tomorrow) {
+      return 'Tomorrow, ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    } else {
+      return '${date.day}/${date.month}/${date.year}, ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    }
   }
 }

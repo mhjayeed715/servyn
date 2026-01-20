@@ -6,12 +6,16 @@ import '../../theme/colors.dart';
 import '../customer/home_screen.dart';
 import 'dart:io';
 import '../../../data/repositories/auth_repository_impl.dart';
-import '../../../services/supabase_config.dart';
 
 class CustomerProfileSetupScreen extends StatefulWidget {
   final String userId;
+  final String phoneNumber;
 
-  const CustomerProfileSetupScreen({super.key, required this.userId});
+  const CustomerProfileSetupScreen({
+    super.key,
+    required this.userId,
+    required this.phoneNumber,
+  });
 
   @override
   State<CustomerProfileSetupScreen> createState() =>
@@ -23,7 +27,6 @@ class _CustomerProfileSetupScreenState
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _emergencyNameController = TextEditingController();
   final _emergencyPhoneController = TextEditingController();
@@ -39,27 +42,12 @@ class _CustomerProfileSetupScreenState
   @override
   void initState() {
     super.initState();
-    _loadUserPhone();
-  }
-
-  Future<void> _loadUserPhone() async {
-    try {
-      final user = SupabaseConfig.client.auth.currentUser;
-      if (user?.phone != null) {
-        setState(() {
-          _phoneController.text = user!.phone!;
-        });
-      }
-    } catch (e) {
-      // Handle error silently
-    }
   }
 
   @override
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
     _addressController.dispose();
     _emergencyNameController.dispose();
     _emergencyPhoneController.dispose();
@@ -96,17 +84,25 @@ class _CustomerProfileSetupScreenState
       }
 
       // Save customer profile
+      print('📝 Submitting customer profile...');
+      print('   userId: ${widget.userId}');
+      print('   phone: ${widget.phoneNumber}');
+      print('   fullName: ${_fullNameController.text}');
+      print('   email: ${_emailController.text}');
+      
       await authRepo.createCustomer(
         userId: widget.userId,
-        phone: _phoneController.text,
+        phone: widget.phoneNumber,
         fullName: _fullNameController.text,
-        email: _emailController.text,
+        email: _emailController.text.isEmpty ? 'N/A' : _emailController.text,
         city: _selectedCity!,
         address: _addressController.text,
         photoBase64: photoBase64,
         emergencyName: _emergencyNameController.text,
         emergencyPhone: _emergencyPhoneController.text,
       );
+      
+      print('✅ Customer profile submitted successfully');
 
       if (!mounted) return;
 
@@ -117,12 +113,14 @@ class _CustomerProfileSetupScreenState
         ),
       );
     } catch (e) {
+      print('❌ Profile submission error: $e');
       if (!mounted) return;
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
         ),
       );
     } finally {
@@ -464,7 +462,7 @@ class _CustomerProfileSetupScreenState
                         const SizedBox(height: 24),
                         // Email (Optional)
                         const Text(
-                          'Email (Optional)',
+                          'Email (ইমেইল) - Optional',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -474,8 +472,9 @@ class _CustomerProfileSetupScreenState
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
+                          readOnly: false,
                           decoration: InputDecoration(
-                            hintText: 'Enter your email',
+                            hintText: 'Enter your email (optional)',
                             filled: true,
                             fillColor: Colors.white,
                             border: OutlineInputBorder(
@@ -497,9 +496,19 @@ class _CustomerProfileSetupScreenState
                               horizontal: 16,
                               vertical: 12,
                             ),
+                            suffixIcon: null,
                           ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return null; // Email is optional
+                            }
+                            final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                            if (!emailRegex.hasMatch(value)) {
+                              return 'Please enter a valid email';
+                            }
+                            return null;
+                          },
                         ),
-
                         const SizedBox(height: 24),
                         // City
                         const Text(
@@ -539,60 +548,6 @@ class _CustomerProfileSetupScreenState
                           items: cities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                           onChanged: (v) => setState(() => _selectedCity = v),
                           validator: (v) => v == null ? 'Please select your city' : null,
-                        ),
-
-                        const SizedBox(height: 24),
-                        // Phone Number
-                        const Text(
-                          'Phone Number (ফোন নম্বর) *',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _phoneController,
-                          readOnly: true,
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: Colors.grey[100],
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Colors.grey[300]!),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Colors.grey[300]!),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            suffixIcon: Icon(
-                              Icons.check_circle,
-                              color: Colors.green[600],
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.verified,
-                              color: Colors.green[600],
-                              size: 14,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Verified via OTP',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
                         ),
 
                         const SizedBox(height: 24),
@@ -822,7 +777,30 @@ class _CustomerProfileSetupScreenState
                         const SizedBox(height: 16),
                         OutlinedButton.icon(
                           onPressed: () {
-                            // TODO: Add multiple emergency contacts
+                            // Show helpful dialog for adding emergency contact
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: Row(
+                                  children: const [
+                                    Icon(Icons.person_add, color: AppColors.primaryBlue),
+                                    SizedBox(width: 8),
+                                    Text('Emergency Contact'),
+                                  ],
+                                ),
+                                content: const Text(
+                                  'Please fill in the emergency contact details in the fields above.\n\n'
+                                  'This contact will be notified in case of emergency during service bookings.',
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Got it'),
+                                  ),
+                                ],
+                              ),
+                            );
                           },
                           icon: const Icon(Icons.person_add),
                           label: const Text(

@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import '../../theme/colors.dart';
 import 'otp_verification_screen.dart';
 import 'login_screen.dart';
-import '../../../core/services/supabase_service.dart';
 
 class RegistrationScreen extends StatefulWidget {
   final String userType;
@@ -16,64 +15,74 @@ class RegistrationScreen extends StatefulWidget {
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   bool _showError = false;
-  final bool _isLoading = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _phoneController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
   Future<void> _validateAndGetOTP() async {
-    String phone = _phoneController.text.trim().replaceAll(' ', '').replaceAll('-', '');
-    
-    // Remove leading 0 if present (01XXXXXXXXX → 1XXXXXXXXX)
-    if (phone.startsWith('0') && phone.length == 11) {
-      phone = phone.substring(1);
-    }
-    
-    // Bangladesh phone numbers: Valid series are 013, 014, 015, 016, 017, 018, 019
-    final RegExp phoneRegex = RegExp(r'^1[3-9][0-9]{8}$');
-    
-    if (phone.isEmpty) {
-      setState(() {
-        _showError = true;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your phone number'),
-          duration: Duration(seconds: 2),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    } else if (!phoneRegex.hasMatch(phone)) {
-      setState(() {
-        _showError = true;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid Bangladesh number (013-019 series, e.g., 01712345678)'),
-          duration: Duration(seconds: 3),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-    
     setState(() {
-      _showError = false;
+      _isLoading = true;
     });
-    
+
     try {
-      // Send OTP via Supabase
-      await SupabaseService.sendOtp(phone);
+      // Both customer and provider use phone-based registration with hardcoded OTP
+      String phone = _phoneController.text.trim().replaceAll(' ', '').replaceAll('-', '');
       
+      // Remove leading 0 if present (01XXXXXXXXX → 1XXXXXXXXX)
+      if (phone.startsWith('0') && phone.length == 11) {
+        phone = phone.substring(1);
+      }
+      
+      // Bangladesh phone numbers: Valid series are 013, 014, 015, 016, 017, 018, 019
+      final RegExp phoneRegex = RegExp(r'^1[3-9][0-9]{8}$');
+      
+      if (phone.isEmpty) {
+        setState(() {
+          _showError = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter your phone number'),
+            duration: Duration(seconds: 2),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      } else if (!phoneRegex.hasMatch(phone)) {
+        setState(() {
+          _showError = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter a valid Bangladesh number (013-019 series, e.g., 01712345678)'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      
+      setState(() {
+        _showError = false;
+      });
+      
+      // No actual OTP sending - hardcoded OTP for both
       if (!mounted) return;
       
-      setState(() {
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Use OTP: 111000'),
+          duration: Duration(seconds: 3),
+          backgroundColor: Colors.green,
+        ),
+      );
       
       // Navigate to OTP screen
       Navigator.push(
@@ -88,16 +97,19 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     } catch (e) {
       if (!mounted) return;
       
-      setState(() {
-      });
-      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error sending OTP: $e'),
+          content: Text('Error: $e'),
           duration: const Duration(seconds: 3),
           backgroundColor: Colors.red,
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -157,7 +169,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     ),
                     SizedBox(height: screenHeight * 0.03),
                     
-                    // Phone Number Input
+                    // Phone Input for both customer and provider
                     const Text(
                       'Mobile Number',
                       style: TextStyle(
@@ -224,18 +236,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             child: TextField(
                               controller: _phoneController,
                               keyboardType: TextInputType.phone,
-                              maxLength: 13,
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
-                                LengthLimitingTextInputFormatter(11),
                               ],
                               decoration: const InputDecoration(
-                                hintText: '1712345678',
+                                hintText: '1XXXXXXXXX',
                                 hintStyle: TextStyle(
                                   color: Color(0xFF9AAAB9),
                                 ),
                                 border: InputBorder.none,
-                                counterText: '',
                                 contentPadding: EdgeInsets.symmetric(
                                   horizontal: 16,
                                   vertical: 16,
@@ -265,73 +274,17 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             color: Color(0xFF5E758D),
                           ),
                           const SizedBox(width: 6),
-                          Text(
-                            _showError
-                                ? 'Please enter a valid Bangladesh number.'
-                                : 'Enter 10 or 11 digits (with or without leading 0).',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _showError
-                                  ? Colors.red
-                                  : const Color(0xFF5E758D),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: screenHeight * 0.04),
-                    
-                    // Test Credentials Display
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.green.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.key,
-                                color: Colors.green.shade700,
-                                size: 20,
+                          Expanded(
+                            child: Text(
+                              _showError
+                                  ? 'Please enter a valid Bangladesh number.'
+                                  : 'Enter 10 or 11 digits. OTP: 111000',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _showError
+                                    ? Colors.red
+                                    : const Color(0xFF5E758D),
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Demo Test Accounts',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green.shade700,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            '📱 Phone: +8801712345678 | OTP: 123456',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                          ),
-                          const Text(
-                            '📱 Phone: +8801987654321 | OTP: 123456',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                          ),
-                          const Text(
-                            '📱 Phone: +8801823456789 | OTP: 654321',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '💡 Use any of these for testing',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.green.shade600,
-                              fontStyle: FontStyle.italic,
                             ),
                           ),
                         ],

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../../theme/colors.dart';
+import '../provider/provider_dashboard_screen.dart';
+import '../customer/home_screen.dart';
 
 class VerificationSuccessScreen extends StatefulWidget {
   final String userType;
@@ -70,27 +72,15 @@ class _VerificationSuccessScreenState extends State<VerificationSuccessScreen>
   }
 
   void _navigateToDashboard() {
-    // TODO: Navigate to appropriate dashboard based on userType
-    // For now, just show a message
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Redirecting to ${widget.userType} dashboard...',
-          ),
-          duration: const Duration(seconds: 2),
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => widget.userType == 'customer'
+              ? const HomeScreen()
+              : const ProviderDashboardScreen(),
         ),
       );
-      
-      // TODO: Replace with actual navigation
-      // Navigator.pushReplacement(
-      //   context,
-      //   MaterialPageRoute(
-      //     builder: (context) => widget.userType == 'customer'
-      //         ? CustomerDashboard()
-      //         : ProviderDashboard(),
-      //   ),
-      // );
     }
   }
 

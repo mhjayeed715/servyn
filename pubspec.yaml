@@ -15,6 +15,7 @@ dependencies:
   provider: ^6.1.2
 
   supabase_flutter: ^2.12.0
+  uuid: ^4.0.0
   # DI
   get_it: ^9.2.0
   # Navigation
@@ -24,6 +25,10 @@ dependencies:
   geolocator: ^14.0.2  # Location
   google_maps_flutter: ^2.14.0  # Maps
   geocoding: ^3.0.0  # Reverse geocoding
+  flutter_osm_plugin: ^1.0.3  # OpenStreetMap
+  flutter_map: ^7.0.2  # OpenStreetMap with flutter_map
+  latlong2: ^0.9.1  # Latitude/Longitude for flutter_map
+  url_launcher: ^6.3.1  # Launch URLs, phone calls
   # Utils
   dartz: ^0.10.1  # For Either/Failure
   http: ^1.2.2  # Network (if not Dio)
@@ -36,7 +41,10 @@ dependencies:
   permission_handler: ^12.0.1 # Permissions     
   flutter_local_notifications: ^19.5.0
   send_message: ^1.0.2
-
+  shared_preferences: ^2.5.4
+  clipboard: ^3.0.14
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -47,8 +55,27 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/images/logo/
     - assets/fonts/
     - assets/localization/translations/ 
+flutter_icons:
+  android: true
+  ios: true
+  image_path: assets/images/logo/servyn_logo.png
+  min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: assets/images/logo/servyn_logo.png
+
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: assets/images/logo/servyn_logo.png
+  color_dark: "#0F172A"
+  image_dark: assets/images/logo/servyn_logo.png
+  android_12:
+    color: "#FFFFFF"
+    image: assets/images/logo/servyn_logo.png
+    icon_background_color: "#FFFFFF"
+  web: true
 
   fonts:
     - family: Inter

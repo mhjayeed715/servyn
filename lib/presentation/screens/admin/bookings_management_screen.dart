@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:clipboard/clipboard.dart';
 import '../../../core/services/supabase_service.dart';
 
 class BookingsManagementScreen extends StatefulWidget {
@@ -240,23 +241,116 @@ class _BookingsManagementScreenState extends State<BookingsManagementScreen> {
     }
   }
 
+  Future<void> _exportBookingsCSV() async {
+    try {
+      String csv = 'Booking ID,Service,Customer,Provider,Status,Date,Amount\n';
+      
+      for (var booking in _filteredBookings) {
+        final id = booking['id']?.toString().substring(0, 8) ?? 'N/A';
+        final service = booking['service_name'] ?? 'N/A';
+        final customer = booking['customer_name'] ?? 'N/A';
+        final provider = booking['provider_name'] ?? 'N/A';
+        final status = booking['status'] ?? 'N/A';
+        final date = _formatDate(booking['booking_date']);
+        final amount = booking['total_amount'] ?? 0;
+        
+        csv += '"$id","$service","$customer","$provider","$status","$date","$amount"\n';
+      }
+      
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Export Bookings'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('${_filteredBookings.length} bookings ready to export'),
+                  const SizedBox(height: 16),
+                  SelectableText(
+                    csv,
+                    style: const TextStyle(fontSize: 10, fontFamily: 'monospace'),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  FlutterClipboard.copy(csv).then(( value ) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('CSV copied to clipboard!')),
+                    );
+                  });
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                child: const Text('Copy'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFEC9213),
-        title: const Text('Bookings Management'),
-        elevation: 0,
-      ),
       body: Column(
         children: [
+          // Header
           Container(
-            color: Colors.white,
             padding: const EdgeInsets.all(16),
+            color: Colors.white,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Bookings Management',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.download),
+                      tooltip: 'Export CSV',
+                      onPressed: _exportBookingsCSV,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.refresh),
+                      tooltip: 'Refresh',
+                      onPressed: _loadBookings,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Expanded(
             child: Column(
               children: [
-                TextField(
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Column(
+                    children: [
+                      TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
                     hintText: 'Search bookings...',
@@ -382,7 +476,10 @@ class _BookingsManagementScreenState extends State<BookingsManagementScreen> {
                           },
                         ),
                       ),
-          ),
+            ),
+          ],
+        ),
+      ),
         ],
       ),
     );

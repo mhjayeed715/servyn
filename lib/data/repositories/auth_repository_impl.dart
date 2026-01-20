@@ -25,10 +25,10 @@ class AuthRepositoryImpl implements AuthRepository {
     required String emergencyName,
     required String emergencyPhone,
   }) async {
-    // Create user entry
+    // Create user entry (phone is stored in users table)
     await SupabaseService.createUser(userId, phone, 'customer');
     
-    // Save profile
+    // Save profile (customer_profiles table doesn't have phone column)
     await SupabaseService.saveCustomerProfile(
       userId: userId,
       fullName: fullName,
@@ -46,8 +46,9 @@ class AuthRepositoryImpl implements AuthRepository {
     required String userId,
     required String phone,
     required String fullName,
-    required String nidNumber,
-    required String? nidPhotoBase64,
+    required String docNumber,
+    required String? docPhotoBase64,
+    required String docType,
     required List<String> services,
     required String bankAccountName,
     required String bankAccountNumber,
@@ -60,8 +61,9 @@ class AuthRepositoryImpl implements AuthRepository {
     await SupabaseService.saveProviderVerification(
       userId: userId,
       fullName: fullName,
-      nidNumber: nidNumber,
-      nidPhotoBase64: nidPhotoBase64,
+      docNumber: docNumber,
+      docPhotoBase64: docPhotoBase64,
+      docType: docType,
       services: services,
       bankAccountName: bankAccountName,
       bankAccountNumber: bankAccountNumber,

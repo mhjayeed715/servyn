@@ -2,15 +2,20 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../theme/colors.dart';
-import '../customer/home_screen.dart';
+import '../provider/provider_dashboard_screen.dart';
 import 'dart:io';
 import '../../../data/repositories/auth_repository_impl.dart';
 import '../../../services/supabase_config.dart';
 
 class ProviderVerificationScreen extends StatefulWidget {
   final String userId;
+  final String? phoneNumber;
 
-  const ProviderVerificationScreen({super.key, required this.userId});
+  const ProviderVerificationScreen({
+    super.key,
+    required this.userId,
+    this.phoneNumber,
+  });
 
   @override
   State<ProviderVerificationScreen> createState() =>
@@ -91,10 +96,11 @@ class _ProviderVerificationScreenState
       // Save provider verification
       await authRepo.createProvider(
         userId: widget.userId,
-        phone: SupabaseConfig.client.auth.currentUser?.phone ?? '',
+        phone: widget.phoneNumber ?? SupabaseConfig.client.auth.currentUser?.phone ?? '',
         fullName: _fullNameController.text,
-        nidNumber: _nidController.text,
-        nidPhotoBase64: nidBase64,
+        docNumber: _nidController.text,
+        docPhotoBase64: nidBase64,
+        docType: _selectedDocType,
         services: _selectedCategories.map((s) => s.toLowerCase()).toList(),
         bankAccountName: _accountHolderController.text,
         bankAccountNumber: _accountNumberController.text,
@@ -106,7 +112,7 @@ class _ProviderVerificationScreenState
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => const HomeScreen(),
+          builder: (context) => const ProviderDashboardScreen(),
         ),
       );
     } catch (e) {
@@ -548,8 +554,9 @@ class _ProviderVerificationScreenState
             ),
             items: const [
               DropdownMenuItem(value: 'nid', child: Text('National ID (NID)')),
+              DropdownMenuItem(value: 'birth_certificate', child: Text('Birth Certificate')),
               DropdownMenuItem(value: 'passport', child: Text('Passport')),
-              DropdownMenuItem(value: 'driving', child: Text('Driving License')),
+              DropdownMenuItem(value: 'driving_license', child: Text('Driving License')),
             ],
             onChanged: (value) {
               setState(() {
@@ -600,60 +607,138 @@ class _ProviderVerificationScreenState
                 ),
               ),
               
-              // Upload Container
-              InkWell(
-                onTap: _pickIdDocument,
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryBlue.withOpacity(0.05),
-                    border: Border.all(
-                      color: AppColors.primaryBlue.withOpacity(0.3),
-                      width: 2,
-                      style: BorderStyle.solid,
+              // Upload Container or Image Preview
+              if (_idFrontImage == null)
+                InkWell(
+                  onTap: _pickIdDocument,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBlue.withOpacity(0.05),
+                      border: Border.all(
+                        color: AppColors.primaryBlue.withOpacity(0.3),
+                        width: 2,
+                        style: BorderStyle.solid,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 4,
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.add_a_photo,
+                            color: AppColors.primaryBlue,
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Tap to upload document',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Max file size: 5MB (JPG, PNG)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
+                )
+              else
+                Stack(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green, width: 2),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.file(
+                          _idFrontImage!,
+                          width: double.infinity,
+                          height: 250,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Colors.green,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.black.withOpacity(0.2),
                               blurRadius: 4,
                             ),
                           ],
                         ),
-                        child: Icon(
-                          Icons.add_a_photo,
-                          color: AppColors.primaryBlue,
-                          size: 28,
+                        padding: const EdgeInsets.all(4),
+                        child: const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 20,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Tap to upload front & back',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                    ),
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade700,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white, size: 16),
+                          onPressed: () {
+                            setState(() => _idFrontImage = null);
+                          },
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Max file size: 5MB (JPG, PNG)',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 12),
+              Text(
+                _idFrontImage != null 
+                  ? '✅ Document uploaded and verified'
+                  : 'Clear image with good lighting for OCR scanning',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: _idFrontImage != null ? Colors.green : Colors.grey[600],
+                  fontStyle: FontStyle.italic,
                 ),
               ),
             ],

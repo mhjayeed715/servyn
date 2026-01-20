@@ -1,5 +1,8 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:servyn/core/services/supabase_service.dart';
+import '../../../core/services/session_service.dart';
 
 class VerificationQueueScreen extends StatefulWidget {
   const VerificationQueueScreen({super.key});
@@ -209,14 +212,14 @@ class _VerificationQueueScreenState extends State<VerificationQueueScreen> {
 
     if (confirmed == true) {
       try {
-        final currentAdmin = SupabaseService.getCurrentUser();
-        if (currentAdmin == null) {
+        final adminId = await SessionService.getUserId();
+        if (adminId == null) {
           throw 'Admin not logged in';
         }
         
         await SupabaseService.approveProviderVerification(
           userId: userId,
-          adminId: currentAdmin.id,
+          adminId: adminId,
         );
         
         if (mounted) {
@@ -285,14 +288,14 @@ class _VerificationQueueScreenState extends State<VerificationQueueScreen> {
 
     if (confirmed == true) {
       try {
-        final currentAdmin = SupabaseService.getCurrentUser();
-        if (currentAdmin == null) {
+        final adminId = await SessionService.getUserId();
+        if (adminId == null) {
           throw 'Admin not logged in';
         }
         
         await SupabaseService.rejectProviderVerification(
           userId: userId,
-          adminId: currentAdmin.id,
+          adminId: adminId,
           reason: reasonController.text.trim(),
         );
         
@@ -373,6 +376,64 @@ class _VerificationQueueScreenState extends State<VerificationQueueScreen> {
     }
     
     return widgets;
+  }
+
+  Widget _buildImagePreview(String base64Data, String label) {
+    Uint8List? bytes;
+    try {
+      bytes = base64Decode(base64Data.split(',').last);
+    } catch (_) {
+      bytes = null;
+    }
+
+    if (bytes == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.image, size: 16, color: Color(0xFF897961)),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF181511),
+              ),
+            ),
+            const Spacer(),
+            TextButton(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => Dialog(
+                    child: InteractiveViewer(
+                      child: Image.memory(bytes!),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('View'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.memory(
+            bytes,
+            height: 140,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
   }
 
   Future<void> _openDocument(String url) async {
@@ -749,6 +810,7 @@ class _VerificationQueueScreenState extends State<VerificationQueueScreen> {
     final services = (item['services'] as List?)?.join(', ') ?? 'N/A';
     final phone = item['users']?['phone'] ?? 'N/A';
     final nidNumber = item['nid_number'] ?? 'N/A';
+    final docBase64 = item['id_document_photo_base64'] ?? item['nid_photo_base64'];
     final uploadTime = _getTimeAgo(item['created_at']);
     final userId = item['user_id'];
 
@@ -907,8 +969,8 @@ class _VerificationQueueScreenState extends State<VerificationQueueScreen> {
 
           const SizedBox(height: 12),
 
-          // Attached Documents Section
-          if (item['nid_image_url'] != null || item['documents'] != null) ...[
+          // Attached Documents Section with preview
+          if (docBase64 != null || item['nid_image_url'] != null || item['documents'] != null) ...[
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -938,6 +1000,8 @@ class _VerificationQueueScreenState extends State<VerificationQueueScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  if (docBase64 != null)
+                    _buildImagePreview(docBase64, 'Document Preview'),
                   if (item['nid_image_url'] != null)
                     _buildDocumentLink(
                       'NID Document',

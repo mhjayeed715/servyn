@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../theme/colors.dart';
 import '../../../services/supabase_config.dart';
+import 'date_time_selection_screen.dart';
 
 class ServiceCategoryScreen extends StatefulWidget {
   final String categoryName;
@@ -39,18 +40,19 @@ class _ServiceCategoryScreenState extends State<ServiceCategoryScreen> {
     setState(() => _isLoading = true);
     
     try {
-      // TODO: Fetch providers from Supabase filtered by category
+      // Fetch providers from Supabase filtered by category and verification status
       final response = await SupabaseConfig.client
           .from('provider_profiles')
           .select('*, users!inner(phone)')
-          .eq('verification_status', 'approved')
-          .order('created_at', ascending: false);
+          .eq('verification_status', 'verified')
+          .contains('services', [widget.categoryName]);
       
       setState(() {
         _providers = List<Map<String, dynamic>>.from(response);
         _isLoading = false;
       });
     } catch (e) {
+      print('Error loading providers: $e');
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -272,19 +274,27 @@ class _ServiceCategoryScreenState extends State<ServiceCategoryScreen> {
     final fullName = provider['full_name'] ?? 'Unknown';
     final specialty = widget.categoryName;
     final photoBase64 = provider['profile_photo_base64'];
+    final userId = provider['user_id']?.toString() ?? '';
     
     // TODO: Get actual rating and reviews from database
     final rating = 4.5 + (provider.hashCode % 10) / 10;
     final reviews = 50 + (provider.hashCode % 100);
-    final price = '\$${40 + (provider.hashCode % 60)}/hr';
+    final priceValue = 40.0 + (provider.hashCode % 60);
+    final price = '৳${priceValue.toInt()}/hr';
     
     return GestureDetector(
       onTap: () {
-        // TODO: Navigate to provider detail screen
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('View details for $fullName'),
-            duration: const Duration(seconds: 1),
+        // Navigate to booking flow with this provider
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DateTimeSelectionScreen(
+              serviceId: widget.categoryName.toLowerCase(),
+              serviceName: widget.categoryName,
+              price: priceValue,
+              providerId: userId,
+              providerName: fullName,
+            ),
           ),
         );
       },
@@ -531,15 +541,15 @@ class _ServiceCategoryScreenState extends State<ServiceCategoryScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _buildFilterChip('Under \$50'),
+                    child: _buildFilterChip('Under ৳500'),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _buildFilterChip('\$50 - \$100'),
+                    child: _buildFilterChip('৳500 - ৳1000'),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _buildFilterChip('Over \$100'),
+                    child: _buildFilterChip('Over ৳1000'),
                   ),
                 ],
               ),

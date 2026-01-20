@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:clipboard/clipboard.dart';
 import '../../../core/services/supabase_service.dart';
 
 class ProvidersManagementScreen extends StatefulWidget {
@@ -199,7 +201,39 @@ class _ProvidersManagementScreenState extends State<ProvidersManagementScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    _buildDetailRow(Icons.email, 'Email', provider['email'] ?? 'N/A'),
+                    
+                    // ID Document Section
+                    if (provider['id_document_photo_base64'] != null || provider['nid_photo_base64'] != null)
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'ID Document',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _buildIdDocumentImage(provider),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Type: ${provider['id_document_type'] ?? 'Not specified'} | Number: ${provider['id_document_number'] ?? 'N/A'}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 24),
                     _buildDetailRow(Icons.phone, 'Phone', provider['phone'] ?? 'N/A'),
                     _buildDetailRow(Icons.calendar_today, 'Joined', _formatDate(provider['created_at'])),
                     _buildDetailRow(Icons.book_online, 'Total Bookings', '${provider['bookings_count'] ?? 0}'),
@@ -274,6 +308,35 @@ class _ProvidersManagementScreenState extends State<ProvidersManagementScreen> {
     );
   }
 
+  Widget _buildIdDocumentImage(Map<String, dynamic> provider) {
+    try {
+      final imageBase64 = provider['id_document_photo_base64'] ?? provider['nid_photo_base64'];
+      if (imageBase64 != null && imageBase64.isNotEmpty) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.memory(
+            base64Decode(imageBase64),
+            height: 200,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                height: 200,
+                color: Colors.grey[200],
+                child: Center(
+                  child: Text('Unable to load image: $error'),
+                ),
+              );
+            },
+          ),
+        );
+      }
+      return const Text('No image available');
+    } catch (e) {
+      return Text('Error loading image: $e');
+    }
+  }
+
   String _formatDate(dynamic date) {
     if (date == null) return 'N/A';
     try {
@@ -297,23 +360,116 @@ class _ProvidersManagementScreenState extends State<ProvidersManagementScreen> {
     }
   }
 
+  Future<void> _exportProvidersCSV() async {
+    try {
+      String csv = 'Name,Email,Phone,Status,Services,Joined Date\n';
+      
+      for (var provider in _filteredProviders) {
+        final name = provider['name'] ?? 'N/A';
+        final email = provider['email'] ?? 'N/A';
+        final phone = provider['phone'] ?? 'N/A';
+        final status = provider['status'] ?? 'N/A';
+        final services = (provider['services'] as List?)?.join('; ') ?? 'N/A';
+        final joined = _formatDate(provider['created_at']);
+        
+        csv += '"$name","$email","$phone","$status","$services","$joined"\n';
+      }
+      
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Export Providers'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('${_filteredProviders.length} providers ready to export'),
+                  const SizedBox(height: 16),
+                  SelectableText(
+                    csv,
+                    style: const TextStyle(fontSize: 10, fontFamily: 'monospace'),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  FlutterClipboard.copy(csv).then(( value ) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('CSV copied to clipboard!')),
+                    );
+                  });
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                child: const Text('Copy'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFEC9213),
-        title: const Text('Providers Management'),
-        elevation: 0,
-      ),
       body: Column(
         children: [
+          // Header
           Container(
-            color: Colors.white,
             padding: const EdgeInsets.all(16),
+            color: Colors.white,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Providers Management',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.download),
+                      tooltip: 'Export CSV',
+                      onPressed: _exportProvidersCSV,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.refresh),
+                      tooltip: 'Refresh',
+                      onPressed: _loadProviders,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          Expanded(
             child: Column(
               children: [
-                TextField(
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Column(
+                    children: [
+                      TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
                     hintText: 'Search providers...',
@@ -442,7 +598,10 @@ class _ProvidersManagementScreenState extends State<ProvidersManagementScreen> {
                           },
                         ),
                       ),
-          ),
+            ),
+          ],
+        ),
+      ),
         ],
       ),
     );

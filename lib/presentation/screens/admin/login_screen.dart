@@ -22,8 +22,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   @override
   void initState() {
     super.initState();
-    // Pre-fill phone number if coming from redirect
-    _phoneController.text = '01794506068';
+    // Do not pre-fill phone number
   }
 
   @override
@@ -301,60 +300,6 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                  ),
-                ),
-                
-                SizedBox(height: screenHeight * 0.03),
-                
-                // Test Credentials Display
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.orange.withOpacity(0.3),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.key,
-                            color: Colors.orange.shade700,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Demo Admin Credentials',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.orange.shade700,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        '📱 Phone: +8801611111111',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                      const Text(
-                        '🔑 OTP: 111111',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                    ],
                   ),
                 ),
                 

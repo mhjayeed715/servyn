@@ -405,65 +405,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   SizedBox(height: screenHeight * 0.02),
                   
-                  // Test Credentials Display (for demo purposes)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Colors.green.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.science,
-                              color: Colors.green.shade700,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Demo Test Accounts',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green.shade700,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          '📱 Phone: +8801712345678 | OTP: 123456',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                        ),
-                        const Text(
-                          '📱 Phone: +8801987654321 | OTP: 123456',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                        ),
-                        const Text(
-                          '📱 Phone: +8801823456789 | OTP: 654321',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '💡 Use any of these for testing',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.green.shade600,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: screenHeight * 0.02),
-                  
                   // Register Link
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,

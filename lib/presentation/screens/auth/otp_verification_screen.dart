@@ -4,8 +4,11 @@ import 'package:flutter/services.dart';
 import '../../theme/colors.dart';
 import 'customer_profile_setup_screen.dart';
 import 'provider_verification_screen.dart';
+import 'verification_success_screen.dart';
 import '../customer/home_screen.dart';
+import '../provider/provider_dashboard_screen.dart';
 import '../../../core/services/supabase_service.dart';
+import '../../../core/services/session_service.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String phoneNumber;
@@ -76,15 +79,16 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   Future<void> _resendOTP() async {
     if (_canResend) {
       try {
-        await SupabaseService.sendOtp(widget.phoneNumber);
-        _startTimer();
+        // Hardcoded OTP for both customer and provider
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('OTP has been resent'),
+            content: Text('OTP: 111000'),
             duration: Duration(seconds: 2),
+            backgroundColor: Colors.green,
           ),
         );
+        _startTimer();
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -115,50 +119,173 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     });
     
     try {
-      // Verify OTP via Supabase
-      final userId = await SupabaseService.verifyOtp(widget.phoneNumber, otp);
+      print('🔐 Starting OTP verification for ${widget.phoneNumber}...');
+      String? userId;
+      
+      // Use hardcoded OTP (111000) for both customer and provider
+      userId = await SupabaseService.verifyProviderOtp(widget.phoneNumber, otp);
       
       if (!mounted) return;
       
       if (userId != null) {
+        print('✅ Got userId: $userId');
+        
+        // Save session locally since we are not using Supabase Auth session
+        await SessionService.saveSession(
+          userId: userId,
+          phone: widget.phoneNumber,
+          role: widget.userType,
+        );
+        
+        print('🔍 Checking if profile exists...');
+        
         // Check if profile already exists
         bool profileExists = false;
         
         if (widget.userType == 'customer') {
-          profileExists = await SupabaseService.customerProfileExists(userId);
+          profileExists = await SupabaseService.customerProfileExists(userId, phone: widget.phoneNumber);
+          print('📋 Customer profile exists: $profileExists');
         } else {
           profileExists = await SupabaseService.providerProfileExists(userId);
+          print('📋 Provider profile exists: $profileExists');
         }
         
         if (!mounted) return;
         
         if (profileExists) {
-          // Profile exists, navigate to home
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const HomeScreen(),
-            ),
-          );
-        } else {
-          // No profile, navigate to profile setup
-          if (widget.userType == 'customer') {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => CustomerProfileSetupScreen(userId: userId),
+          print('✅ Profile found - checking verification status for provider');
+          
+          // For providers, check verification status before allowing login
+          if (widget.userType == 'provider') {
+            final verificationStatus = await SupabaseService.getProviderVerificationStatus(userId);
+            print('🔍 Provider verification status: $verificationStatus');
+            
+            if (verificationStatus == 'pending') {
+              // Show pending verification dialog
+              if (!mounted) return;
+              setState(() {
+                _isVerifying = false;
+              });
+              _showVerificationPendingDialog();
+              return;
+            } else if (verificationStatus == 'rejected') {
+              // Show rejected dialog
+              if (!mounted) return;
+              setState(() {
+                _isVerifying = false;
+              });
+              _showVerificationRejectedDialog();
+              return;
+            } else if (verificationStatus != 'verified') {
+              // Unknown status or not verified
+              if (!mounted) return;
+              setState(() {
+                _isVerifying = false;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Your account is not yet verified. Please wait for admin approval.'),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 4),
+                ),
+              );
+              return;
+            }
+            
+            // If verified, check if this is first login after verification
+            final isRecentlyVerified = await _checkIfRecentlyVerified(userId);
+            if (isRecentlyVerified) {
+              print('🎉 Provider recently verified - showing success screen');
+              if (!mounted) return;
+              setState(() {
+                _isVerifying = false;
+              });
+              
+              // Mark success screen as shown
+              await _markVerificationSuccessShown(userId);
+              
+              // Show verification success screen
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => VerificationSuccessScreen(
+                    userType: widget.userType,
+                    verificationType: 'document',
+                  ),
+                ),
+              );
+              return;
+            }
+          }
+          
+          // Profile exists and verified (or customer), navigate to appropriate dashboard
+          if (!mounted) return;
+          try {
+            if (widget.userType == 'provider') {
+               Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProviderDashboardScreen(),
+                ),
+              );
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const HomeScreen(),
+                ),
+              );
+            }
+            print('✅ Navigation to ${widget.userType} dashboard initiated');
+          } catch (navError) {
+            print('❌ Navigation error: $navError');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Navigation error: $navError'),
+                backgroundColor: Colors.red,
               ),
             );
-          } else {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ProviderVerificationScreen(userId: userId),
+          }
+        } else {
+          print('📝 No profile found - navigating to profile setup');
+          // No profile, navigate to profile setup
+          if (!mounted) return;
+          try {
+            if (widget.userType == 'customer') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CustomerProfileSetupScreen(
+                    userId: userId!,
+                    phoneNumber: widget.phoneNumber,
+                  ),
+                ),
+              );
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProviderVerificationScreen(
+                    userId: userId!,
+                    phoneNumber: widget.phoneNumber,
+                  ),
+                ),
+              );
+            }
+            print('✅ Navigation to profile setup initiated');
+          } catch (navError) {
+            print('❌ Profile setup navigation error: $navError');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Navigation error: $navError'),
+                backgroundColor: Colors.red,
               ),
             );
           }
         }
       } else {
+        print('❌ No userId returned');
+        if (!mounted) return;
         setState(() {
           _isVerifying = false;
         });
@@ -171,26 +298,57 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         );
       }
     } catch (e) {
+      print('❌ OTP Verification Error: $e');
       if (!mounted) return;
       
       setState(() {
         _isVerifying = false;
       });
       
-      // Check if OTP expired
-      bool isExpired = e.toString().contains('expired') || e.toString().contains('invalid');
-      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isExpired ? 'OTP expired. Please request a new code.' : 'Verification failed: $e'),
-          duration: const Duration(seconds: 3),
+          content: Text('Error: ${e.toString()}'),
+          duration: const Duration(seconds: 4),
           backgroundColor: Colors.red,
         ),
       );
     }
   }
 
-  String _getMaskedPhone() {
+  /// Check if provider was recently verified (within last login)
+  Future<bool> _checkIfRecentlyVerified(String userId) async {
+    try {
+      final profile = await SupabaseService.getProviderProfile(userId);
+      if (profile == null) return false;
+      
+      // Check if verification_success_shown is false or null
+      final successShown = profile['verification_success_shown'] as bool?;
+      final verifiedAt = profile['verified_at'] as String?;
+      
+      // Show success screen if:
+      // 1. Not shown before (null or false)
+      // 2. Has verified_at timestamp
+      if ((successShown == null || successShown == false) && verifiedAt != null) {
+        return true;
+      }
+      
+      return false;
+    } catch (e) {
+      print('Error checking recently verified: $e');
+      return false;
+    }
+  }
+  
+  /// Mark verification success screen as shown
+  Future<void> _markVerificationSuccessShown(String userId) async {
+    try {
+      await SupabaseService.markVerificationSuccessShown(userId);
+    } catch (e) {
+      print('Error marking verification success shown: $e');
+    }
+  }
+
+  String _getMaskedContact() {
     // Format: +880 1XXX *** XXX
     if (widget.phoneNumber.length >= 4) {
       String last3 = widget.phoneNumber.substring(widget.phoneNumber.length - 2);
@@ -269,7 +427,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                               text: 'We sent a 6-digit code to ',
                             ),
                             TextSpan(
-                              text: _getMaskedPhone(),
+                              text: _getMaskedContact(),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w500,
                                 color: Color(0xFF101418),
@@ -441,6 +599,65 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             SizedBox(height: screenHeight * 0.01),
           ],
         ),
+      ),
+    );
+  }
+  
+  void _showVerificationPendingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: const [
+            Icon(Icons.hourglass_empty, color: Colors.orange),
+            SizedBox(width: 12),
+            Text('Verification Pending'),
+          ],
+        ),
+        content: const Text(
+          'Your provider account is currently under review by our admin team. '
+          'You will be notified once your verification is complete.\n\n'
+          'This usually takes 24-48 hours.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Go back to login
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showVerificationRejectedDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: const [
+            Icon(Icons.cancel, color: Colors.red),
+            SizedBox(width: 12),
+            Text('Verification Rejected'),
+          ],
+        ),
+        content: const Text(
+          'Unfortunately, your provider verification was rejected. '
+          'Please contact support for more information or resubmit your documents.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Go back to login
+            },
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }

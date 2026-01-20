@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/supabase_service.dart';
+import 'package:clipboard/clipboard.dart';
 
 class UsersManagementScreen extends StatefulWidget {
   const UsersManagementScreen({super.key});
@@ -141,7 +142,68 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
         return Colors.grey;
     }
   }
-
+  Future<void> _exportUsersCSV() async {
+    try {
+      String csv = 'Name,Email,Phone,Role,Status,Joined Date\n';
+      
+      for (var user in _filteredUsers) {
+        final name = user['name'] ?? 'N/A';
+        final email = user['email'] ?? 'N/A';
+        final phone = user['phone'] ?? 'N/A';
+        final role = user['role'] ?? 'N/A';
+        final status = user['status'] ?? 'N/A';
+        final joined = _formatDate(user['created_at']);
+        
+        csv += '"$name","$email","$phone","$role","$status","$joined"\n';
+      }
+      
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Export Users'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('${_filteredUsers.length} users ready to export'),
+                  const SizedBox(height: 16),
+                  SelectableText(
+                    csv,
+                    style: const TextStyle(fontSize: 10, fontFamily: 'monospace'),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  FlutterClipboard.copy(csv).then(( value ) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('CSV copied to clipboard!')),
+                    );
+                  });
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                child: const Text('Copy'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e')),
+        );
+      }
+    }
+  }
   void _viewUserDetails(Map<String, dynamic> user) {
     showModalBottomSheet(
       context: context,
@@ -301,10 +363,42 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
       backgroundColor: Colors.grey[100],
       body: Column(
         children: [
+          // Header with Title and Actions
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.white,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'User Management',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.download),
+                      onPressed: _exportUsersCSV,
+                      tooltip: 'Export CSV',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.refresh),
+                      onPressed: _loadUsers,
+                      tooltip: 'Refresh',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
           // Search Bar
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Column(
               children: [
                 TextField(

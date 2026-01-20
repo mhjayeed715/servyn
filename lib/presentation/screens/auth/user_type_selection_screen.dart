@@ -21,7 +21,10 @@ class _UserTypeSelectionScreenState extends State<UserTypeSelectionScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => _selectedType == 'customer'
-            ? CustomerProfileSetupScreen(userId: widget.userId)
+            ? CustomerProfileSetupScreen(
+                userId: widget.userId,
+                phoneNumber: '', // Note: This screen is not used in current flow
+              )
             : ProviderVerificationScreen(userId: widget.userId),
       ),
     );
