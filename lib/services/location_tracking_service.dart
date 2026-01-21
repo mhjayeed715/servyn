@@ -103,9 +103,7 @@ class LocationTrackingService {
       final supabase = Supabase.instance.client;
       
       return supabase
-          .from('booking_locations')
-          .select()
-          .eq('booking_id', bookingId)
+          .from('booking_locations:booking_id=eq.$bookingId')
           .stream(primaryKey: ['booking_id'])
           .map((data) {
             if (data.isNotEmpty) {

@@ -1,7 +1,5 @@
-import 'package:dartz/dartz.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestResponse;
 import 'dart:async';
 import 'package:uuid/uuid.dart';
 
@@ -47,10 +45,7 @@ class NotificationService {
     if (userId == null) return;
 
     _notificationListener = _supabase
-        .from('notifications')
-        .select()
-        .eq('user_id', userId)
-        .eq('read', false)
+        .from('notifications:user_id=eq.$userId,read=eq.false')
         .stream(primaryKey: ['id'])
         .listen(
           (data) {
@@ -174,14 +169,9 @@ class NotificationService {
     try {
       final resp = await _supabase
           .from('notifications')
-          .select('id', const FetchOptions(count: CountOption.exact))
+          .select('id')
           .match({'user_id': userId, 'read': false});
-      if (resp is PostgrestResponse && resp.count != null) {
-        return resp.count!;
-      } else if (resp is List) {
-        return resp.length;
-      }
-      return 0;
+      return (resp as List).length;
     } catch (e) {
       print('Error getting unread count: $e');
       return 0;

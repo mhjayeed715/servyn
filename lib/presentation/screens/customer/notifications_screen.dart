@@ -25,11 +25,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (userId == null) return;
 
     _notificationsStream = Supabase.instance.client
-        .from('notifications')
-        .select()
-        .eq('user_id', userId)
-        .order('created_at', ascending: false)
-        .stream(primaryKey: ['id']);
+        .from('notifications:user_id=eq.$userId,read=eq.false')
+        .stream(primaryKey: ['id'])
+        .map((list) {
+          final items = (list as List).cast<Map<String, dynamic>>();
+          items.sort((a, b) => (b['created_at'] ?? '').compareTo(a['created_at'] ?? ''));
+          return items;
+        });
 
     _loadUnreadCount(userId);
   }
