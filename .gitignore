@@ -54,3 +54,4 @@ libflutter.so
 libVkLayer*.so
 libmlkit*.so
 classes*.dex
+*.hprof

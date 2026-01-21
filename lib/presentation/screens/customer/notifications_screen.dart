@@ -26,9 +26,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     _notificationsStream = Supabase.instance.client
         .from('notifications')
-        .stream(primaryKey: ['id'])
+        .select()
         .eq('user_id', userId)
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .stream(primaryKey: ['id']);
 
     _loadUnreadCount(userId);
   }

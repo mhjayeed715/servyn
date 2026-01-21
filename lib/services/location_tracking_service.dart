@@ -104,8 +104,9 @@ class LocationTrackingService {
       
       return supabase
           .from('booking_locations')
-          .stream(primaryKey: ['booking_id'])
+          .select()
           .eq('booking_id', bookingId)
+          .stream(primaryKey: ['booking_id'])
           .map((data) {
             if (data.isNotEmpty) {
               return data.first;

@@ -1,3 +1,4 @@
+import 'package:dartz/dartz.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestResponse;
@@ -47,9 +48,10 @@ class NotificationService {
 
     _notificationListener = _supabase
         .from('notifications')
-        .stream(primaryKey: ['id'])
+        .select()
         .eq('user_id', userId)
         .eq('read', false)
+        .stream(primaryKey: ['id'])
         .listen(
           (data) {
             for (final notification in data) {
@@ -172,14 +174,12 @@ class NotificationService {
     try {
       final resp = await _supabase
           .from('notifications')
-          .select('id', const {'count': 'exact'})
-          .eq('user_id', userId)
-          .eq('read', false);
-      // For Supabase Dart, count is in resp.count if using .select(..., {'count': 'exact'})
+          .select('id', const FetchOptions(count: CountOption.exact))
+          .match({'user_id': userId, 'read': false});
       if (resp is PostgrestResponse && resp.count != null) {
         return resp.count!;
-      } else if (resp is Map && resp['count'] != null) {
-        return resp['count'] as int;
+      } else if (resp is List) {
+        return resp.length;
       }
       return 0;
     } catch (e) {
