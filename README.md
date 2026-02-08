@@ -3,11 +3,10 @@
 A Flutter-based mobile app for reliable local service booking in Bangladesh (electricians, plumbers, tutors, domestic workers, etc.).
 
 ## Features (MVP - Version 1.0)
-- Phone number + OTP authentication (Firebase)
+- Phone number + OTP authentication 
 - Role-based access: Customer, Service Provider, Admin
 - Service search and booking
 - Provider profile and booking management
-- SMS notifications
 - Secure data handling
 
 ## Tech Stack
